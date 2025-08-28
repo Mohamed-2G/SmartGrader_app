@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings - SmartGrader{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-cog me-2"></i>
+        System Settings
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button id="saveButton" class="btn btn-success" style="display: none;">
+            <i class="fas fa-save me-2"></i>
+            Save Settings
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- AI Configuration -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-robot me-2"></i>
+                    AI Grading Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="deepseek_model" class="form-label">DeepSeek Model</label>
+<select class="form-select setting-input" id="deepseek_model" data-original-value="{{ settings.get('deepseek_model', 'deepseek-chat') }}">
+<option value="deepseek-chat" {% if settings.get('deepseek_model', 'deepseek-chat') == 'deepseek-chat' %}selected{% endif %}>DeepSeek Chat</option>
+<option value="deepseek-coder" {% if settings.get('deepseek_model', 'deepseek-chat') == 'deepseek-coder' %}selected{% endif %}>DeepSeek Coder</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="temperature" class="form-label">Temperature</label>
+                            <div class="slider-container"></div>
+                            <input type="range" class="form-range setting-input" id="temperature" min="0" max="1" step="0.1" value="{{ settings.get('temperature', '0.3') }}" data-original-value="{{ settings.get('temperature', '0.3') }}">
+                            <div class="form-text">Lower values = more consistent, Higher values = more creative</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="max_tokens" class="form-label">Max Tokens</label>
+                            <input type="number" class="form-control setting-input" id="max_tokens" value="{{ settings.get('max_tokens', '1000') }}" min="100" max="4000" data-original-value="{{ settings.get('max_tokens', '1000') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="grading_timeout" class="form-label">Grading Timeout (seconds)</label>
+                            <input type="number" class="form-control setting-input" id="grading_timeout" value="{{ settings.get('grading_timeout', '30') }}" min="10" max="120" data-original-value="{{ settings.get('grading_timeout', '30') }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Configuration -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-server me-2"></i>
+                    System Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="session_timeout" class="form-label">Session Timeout (minutes)</label>
+                            <input type="number" class="form-control setting-input" id="session_timeout" value="{{ settings.get('session_timeout', '60') }}" min="15" max="480" data-original-value="{{ settings.get('session_timeout', '60') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="max_file_size" class="form-label">Max File Size (MB)</label>
+                            <input type="number" class="form-control setting-input" id="max_file_size" value="{{ settings.get('max_file_size', '10') }}" min="1" max="50" data-original-value="{{ settings.get('max_file_size', '10') }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="backup_frequency" class="form-label">Backup Frequency</label>
+                            <select class="form-select setting-input" id="backup_frequency" data-original-value="{{ settings.get('backup_frequency', 'weekly') }}">
+                                <option value="daily" {% if settings.get('backup_frequency', 'weekly') == 'daily' %}selected{% endif %}>Daily</option>
+                                <option value="weekly" {% if settings.get('backup_frequency', 'weekly') == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="monthly" {% if settings.get('backup_frequency', 'weekly') == 'monthly' %}selected{% endif %}>Monthly</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="log_level" class="form-label">Log Level</label>
+                            <select class="form-select setting-input" id="log_level" data-original-value="{{ settings.get('log_level', 'info') }}">
+                                <option value="debug" {% if settings.get('log_level', 'info') == 'debug' %}selected{% endif %}>Debug</option>
+                                <option value="info" {% if settings.get('log_level', 'info') == 'info' %}selected{% endif %}>Info</option>
+                                <option value="warning" {% if settings.get('log_level', 'info') == 'warning' %}selected{% endif %}>Warning</option>
+                                <option value="error" {% if settings.get('log_level', 'info') == 'error' %}selected{% endif %}>Error</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Settings -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    Security Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input setting-input" type="checkbox" id="require_strong_passwords" {% if settings.get('require_strong_passwords', 'true') == 'true' %}checked{% endif %} data-original-value="{{ settings.get('require_strong_passwords', 'true') }}">
+                            <label class="form-check-label" for="require_strong_passwords">
+                                Require Strong Passwords
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input setting-input" type="checkbox" id="enable_two_factor" {% if settings.get('enable_two_factor', 'true') == 'true' %}checked{% endif %} data-original-value="{{ settings.get('enable_two_factor', 'true') }}">
+                            <label class="form-check-label" for="enable_two_factor">
+                                Enable Two-Factor Authentication
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input setting-input" type="checkbox" id="log_login_attempts" {% if settings.get('log_login_attempts', 'true') == 'true' %}checked{% endif %} data-original-value="{{ settings.get('log_login_attempts', 'true') }}">
+                            <label class="form-check-label" for="log_login_attempts">
+                                Log Login Attempts
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input setting-input" type="checkbox" id="enable_rate_limiting" {% if settings.get('enable_rate_limiting', 'true') == 'true' %}checked{% endif %} data-original-value="{{ settings.get('enable_rate_limiting', 'true') }}">
+                            <label class="form-check-label" for="enable_rate_limiting">
+                                Enable Rate Limiting
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- System Status -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <div>
+                        <h6 class="mb-1">Database</h6>
+                        <small class="text-muted">Connected and healthy</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <div>
+                        <h6 class="mb-1">DeepSeek API</h6>
+                        <small class="text-muted">Connected and responsive</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <div>
+                        <h6 class="mb-1">File System</h6>
+                        <small class="text-muted">Writable and accessible</small>
+                    </div>
+                </div>
+                
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <div>
+                        <h6 class="mb-1">Memory Usage</h6>
+                        <small class="text-muted">Normal (45% used)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tools me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary">
+                        <i class="fas fa-database me-2"></i>
+                        Backup Database
+                    </button>
+                    <button class="btn btn-outline-info">
+                        <i class="fas fa-download me-2"></i>
+                        Export Logs
+                    </button>
+                    <button class="btn btn-outline-warning">
+                        <i class="fas fa-sync me-2"></i>
+                        Clear Cache
+                    </button>
+                    <button class="btn btn-outline-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Emergency Stop
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Info -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    System Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <h6 class="text-primary">Version</h6>
+                        <p class="mb-2">1.0.0</p>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-primary">Uptime</h6>
+                        <p class="mb-2">3 days</p>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <h6 class="text-primary">Database</h6>
+                        <p class="mb-2">SQLite</p>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-primary">Python</h6>
+                        <p class="mb-2">3.9+</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="text-center">
+                    <small class="text-muted">
+                        SmartGrader System<br>
+                        Last updated: {{ last_updated }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Button Section -->
+<div id="confirmSection" class="mt-4" style="display: none;">
+    <div class="card border-success">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-check-circle me-2"></i>
+                Settings Saved Successfully
+            </h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-3">Your settings have been saved. Please confirm the changes to apply them to the system.</p>
+            <div class="d-flex gap-2">
+                <button id="confirmButton" class="btn btn-success">
+                    <i class="fas fa-check me-2"></i>
+                    Confirm Changes
+                </button>
+                <button id="cancelButton" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-2"></i>
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Alert -->
+<div id="successAlert" class="alert alert-success alert-dismissible fade" role="alert" style="display: none;">
+    <i class="fas fa-check-circle me-2"></i>
+    <strong>Success!</strong> All settings have been confirmed and applied successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const saveButton = document.getElementById('saveButton');
+    const confirmSection = document.getElementById('confirmSection');
+    const confirmButton = document.getElementById('confirmButton');
+    const cancelButton = document.getElementById('cancelButton');
+    const successAlert = document.getElementById('successAlert');
+    
+    // Track original values
+    const originalValues = {};
+    const settingInputs = document.querySelectorAll('.setting-input');
+    
+    // Store original values
+    settingInputs.forEach(input => {
+        if (input.type === 'checkbox') {
+            originalValues[input.id] = input.checked;
+        } else {
+            originalValues[input.id] = input.value;
+        }
+    });
+    
+    // Function to check if any values have changed
+    function checkForChanges() {
+        let hasChanges = false;
+        
+        settingInputs.forEach(input => {
+            let currentValue;
+            if (input.type === 'checkbox') {
+                currentValue = input.checked;
+            } else {
+                currentValue = input.value;
+            }
+            
+            if (currentValue !== originalValues[input.id]) {
+                hasChanges = true;
+            }
+        });
+        
+        // Show/hide save button based on changes
+        if (hasChanges) {
+            saveButton.style.display = 'inline-block';
+        } else {
+            saveButton.style.display = 'none';
+            confirmSection.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners to all setting inputs
+    settingInputs.forEach(input => {
+        input.addEventListener('change', checkForChanges);
+        input.addEventListener('input', checkForChanges);
+    });
+    
+    // Save button click handler
+    saveButton.addEventListener('click', function() {
+        // Collect all current values
+        const settings = {};
+        settingInputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                settings[input.id] = input.checked;
+            } else {
+                settings[input.id] = input.value;
+            }
+        });
+        
+        // Send settings to server
+        fetch('/moderator/system/save_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                settings: settings
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Hide save button and show confirm section
+                saveButton.style.display = 'none';
+                confirmSection.style.display = 'block';
+                
+                // Scroll to confirm section
+                confirmSection.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                alert('Error saving settings: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving settings. Please try again.');
+        });
+    });
+    
+    // Confirm button click handler
+    confirmButton.addEventListener('click', function() {
+        // Send confirmation to server
+        fetch('/moderator/system/confirm_settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update original values to current values
+                settingInputs.forEach(input => {
+                    if (input.type === 'checkbox') {
+                        originalValues[input.id] = input.checked;
+                    } else {
+                        originalValues[input.id] = input.value;
+                    }
+                });
+                
+                // Hide confirm section and show success alert
+                confirmSection.style.display = 'none';
+                successAlert.style.display = 'block';
+                successAlert.classList.add('show');
+                
+                // Auto-hide success alert after 5 seconds
+                setTimeout(() => {
+                    successAlert.classList.remove('show');
+                    setTimeout(() => {
+                        successAlert.style.display = 'none';
+                    }, 150);
+                }, 5000);
+            } else {
+                alert('Error confirming settings: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error confirming settings. Please try again.');
+        });
+    });
+    
+    // Cancel button click handler
+    cancelButton.addEventListener('click', function() {
+        // Reset all values to original
+        settingInputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                input.checked = originalValues[input.id];
+            } else {
+                input.value = originalValues[input.id];
+            }
+        });
+        
+        // Hide confirm section and check for changes
+        confirmSection.style.display = 'none';
+        checkForChanges();
+    });
+});
+</script>
+{% endblock %} 

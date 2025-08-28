@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}{{ get_text('messages') }} - SmartGrader{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-envelope me-2"></i>{{ get_text('messages') }}</h1>
+                <div>
+                    {% if received_messages|selectattr('is_read', 'equalto', false)|list|length > 0 %}
+                        <button class="btn btn-outline-secondary me-2" onclick="markAllAsRead()">
+                            <i class="fas fa-check-double me-2"></i>{{ get_text('mark_all_as_read') }}
+                        </button>
+                    {% endif %}
+                    <a href="{{ url_for('compose_message') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>{{ get_text('compose_message_title') }}
+                    </a>
+                </div>
+            </div>
+
+            <!-- Message Tabs -->
+            <ul class="nav nav-tabs" id="messageTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="inbox-tab" data-bs-toggle="tab" data-bs-target="#inbox" type="button" role="tab">
+                        <i class="fas fa-inbox me-2"></i>{{ get_text('inbox_tab') }}
+                        {% if received_messages|selectattr('is_read', 'equalto', false)|list|length > 0 %}
+                            <span class="badge bg-danger ms-2">{{ received_messages|selectattr('is_read', 'equalto', false)|list|length }}</span>
+                        {% endif %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sent-tab" data-bs-toggle="tab" data-bs-target="#sent" type="button" role="tab">
+                        <i class="fas fa-paper-plane me-2"></i>{{ get_text('sent_tab') }}
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="messageTabsContent">
+                <!-- Inbox -->
+                <div class="tab-pane fade show active" id="inbox" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            {% if received_messages %}
+                                <div class="list-group">
+                                    {% for message in received_messages %}
+                                    <a href="{{ url_for('view_message', message_id=message.id) }}" 
+                                       class="list-group-item list-group-item-action {% if not message.is_read %}fw-bold{% endif %}">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">{{ message.subject or get_text('no_subject') }}</h6>
+                                                <p class="mb-1 text-muted">{{ message.content[:100] }}{% if message.content|length > 100 %}...{% endif %}</p>
+                                                <small class="text-muted">{{ get_text('from_label') }}: {{ message.sender.username }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <small class="text-muted">{{ message.sent_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                                {% if not message.is_read %}
+                                                    <span class="badge bg-primary ms-2">{{ get_text('new_message') }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">{{ get_text('no_messages_in_inbox') }}</h5>
+                                    <p class="text-muted">{{ get_text('no_messages_in_inbox_desc') }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sent -->
+                <div class="tab-pane fade" id="sent" role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            {% if sent_messages %}
+                                <div class="list-group">
+                                    {% for message in sent_messages %}
+                                    <a href="{{ url_for('view_message', message_id=message.id) }}" 
+                                       class="list-group-item list-group-item-action">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">{{ message.subject or get_text('no_subject') }}</h6>
+                                                <p class="mb-1 text-muted">{{ message.content[:100] }}{% if message.content|length > 100 %}...{% endif %}</p>
+                                                <small class="text-muted">{{ get_text('to_label') }}: {{ message.recipient.username }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <small class="text-muted">{{ message.sent_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-paper-plane fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">{{ get_text('no_sent_messages') }}</h5>
+                                    <p class="text-muted">{{ get_text('no_sent_messages_desc') }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function markAllAsRead() {
+        fetch('/api/mark_all_messages_read', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the notification badge
+                updateMessageNotification();
+                
+                // Reload the page to update the UI
+                window.location.reload();
+            } else {
+                alert('Error marking messages as read: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error marking messages as read. Please try again.');
+        });
+    }
+</script>
+{% endblock %} 

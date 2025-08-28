@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}{{ get_text('view_message_title') }} - SmartGrader{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-envelope-open me-2"></i>{{ get_text('view_message_title') }}</h1>
+                <a href="{{ url_for('messages') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>{{ get_text('back_to_messages') }}
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ message.subject or get_text('no_subject') }}</h5>
+                        <small class="text-muted">{{ message.sent_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>{{ get_text('from_label') }}:</strong> {{ message.sender.username }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>{{ get_text('to_label') }}:</strong> {{ message.recipient.username }}
+                        </div>
+                    </div>
+
+                    {% if message.attachment_path %}
+                    <div class="mb-3">
+                        <strong>{{ get_text('attachment_label') }}:</strong>
+                        <a href="{{ url_for('download_file', file_id=message.id) }}" class="btn btn-sm btn-outline-primary ms-2">
+                            <i class="fas fa-download me-1"></i>{{ message.attachment_name }}
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+
+                    <div class="message-content">
+                        {{ message.content|nl2br }}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            {% if message.is_read %}
+                                <i class="fas fa-check-double text-success me-1"></i>{{ get_text('read_status') }}
+                            {% else %}
+                                <i class="fas fa-check text-muted me-1"></i>{{ get_text('delivered_status') }}
+                            {% endif %}
+                        </small>
+                        <a href="{{ url_for('compose_message') }}?reply_to={{ message.sender.username }}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="fas fa-reply me-1"></i>{{ get_text('reply_button') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

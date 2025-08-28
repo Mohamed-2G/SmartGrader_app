@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Exam - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3>📝 Submit Exam Answers</h3>
+                    <p class="text-muted">{{ exam.title }}</p>
+                </div>
+                <div class="card-body">
+                    <!-- Exam Information -->
+                    <div class="alert alert-info mb-4">
+                        <h6>📋 Exam Details</h6>
+                        <ul class="mb-0">
+                            <li><strong>Title:</strong> {{ exam.title }}</li>
+                            {% if exam.subject %}
+                                <li><strong>Subject:</strong> {{ exam.subject }}</li>
+                            {% endif %}
+                            {% if exam.description %}
+                                <li><strong>Description:</strong> {{ exam.description }}</li>
+                            {% endif %}
+                            <li><strong>Questions:</strong> {{ exam.total_questions }}</li>
+                            <li><strong>Total Points:</strong> {{ exam.total_points }}</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="student_name" class="form-label">Your Full Name *</label>
+                            <input type="text" class="form-control" id="student_name" name="student_name" required 
+                                   placeholder="Enter your full name as it appears on your student ID">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Student ID Number *</label>
+                            <input type="text" class="form-control" id="student_id" name="student_id" required 
+                                   placeholder="Enter your student ID number">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="answer_file" class="form-label">Answer File *</label>
+                            <input type="file" class="form-control" id="answer_file" name="answer_file" required 
+                                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.doc,.docx,.txt">
+                            <div class="form-text">
+                                Upload your completed exam answers. Supported formats: PDF, Images (JPG, PNG, GIF, BMP, TIFF), Documents (DOC, DOCX, TXT)
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <h6>⚠️ Important Notes</h6>
+                            <ul class="mb-0">
+                                <li>Make sure your answers are clearly written and readable</li>
+                                <li>Include your name and student ID on your answer sheet</li>
+                                <li>Ensure all questions are answered before uploading</li>
+                                <li>You can only submit once per exam</li>
+                                <li>Your submission will be automatically graded using AI</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-paper-plane"></i> Submit Exam Answers
+                            </button>
+                            <a href="{{ url_for('student.view_exam', exam_id=exam.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Exam Details
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>💡 Submission Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Clear handwriting:</strong> Write clearly and use dark ink</li>
+                        <li><strong>Good lighting:</strong> Take photos in well-lit conditions</li>
+                        <li><strong>Complete answers:</strong> Make sure all questions are answered</li>
+                        <li><strong>File quality:</strong> Ensure the file is clear and readable</li>
+                        <li><strong>Double-check:</strong> Review your answers before submitting</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

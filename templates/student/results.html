@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}My Results{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2>My Results</h2>
+            <p class="text-muted">View your graded exam submissions and scores</p>
+            
+            {% if submissions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Exam</th>
+                                <th>Subject</th>
+                                <th>Submitted</th>
+                                <th>Score</th>
+                                <th>Percentage</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for submission in submissions %}
+                            <tr>
+                                <td>
+                                    <strong>{{ submission.uploaded_exam.title }}</strong>
+                                </td>
+                                <td>{{ submission.uploaded_exam.subject }}</td>
+                                <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if submission.max_score > 0 %}
+                                        <span class="badge bg-{% if submission.total_score >= submission.max_score * 0.8 %}success{% elif submission.total_score >= submission.max_score * 0.6 %}warning{% else %}danger{% endif %}">
+                                            {{ submission.total_score }}/{{ submission.max_score }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ submission.total_score }}/{{ submission.max_score }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if submission.max_score > 0 %}
+                                        <strong>{{ "%.1f"|format((submission.total_score / submission.max_score) * 100) }}%</strong>
+                                    {% else %}
+                                        <strong>N/A</strong>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('student.view_submission', submission_id=submission.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No graded results yet</h4>
+                    <p class="text-muted">Your submitted exams will appear here once they are graded</p>
+                    <a href="{{ url_for('student.exams') }}" class="btn btn-primary">
+                        <i class="fas fa-file-alt"></i> Browse Available Exams
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - SmartGrader{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-users me-2"></i>
+        User Management
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="fas fa-plus me-2"></i>
+            Add User
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>
+            All Users
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Password</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <strong>{{ user.username }}</strong>
+                        </td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'primary' if user.role == 'instructor' else 'success' if user.role == 'moderator' else 'info' }}">
+                                {{ 'Instructor' if user.role == 'instructor' else 'Moderator' if user.role == 'moderator' else 'Student' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="text-muted">Hidden</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <!-- Edit User Button -->
+                                <button class="btn btn-outline-primary" title="Edit User" onclick="openEditModal({{ user.id }}, '{{ user.username|escape }}', '{{ user.email|escape }}', '{{ user.language|escape }}', '{{ user.role|escape }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <!-- Suspend/Unsuspend Button -->
+                                {% if user.is_active and (not user.suspended_until or user.suspended_until < now()) %}
+                                <button class="btn btn-outline-warning" title="Suspend User" onclick="openSuspendModal({{ user.id }}, '{{ user.username|escape }}')">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                                {% elif user.suspended_until and user.suspended_until > now() %}
+                                <button class="btn btn-outline-success" title="UnsuspendUser({{ user.id }})">unsuspendUser({{ user.id }})</button>
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                                <!-- Delete User Button -->
+                                <button class="btn btn-outline-danger" title="Delete User" onclick="deleteUser({{ user.id }}, '{{ user.username|escape }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <!-- Password Reset Button -->
+                                {% if user.role == 'instructor' or user.role == 'student' %}
+                                <button class="btn btn-outline-info" title="Send Password Reset Link" onclick="sendResetLink('{{ user.email }}')">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                                {% endif %}
+<!-- Suspend User Modal -->
+<div class="modal fade" id="suspendUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Suspend User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="suspendUserForm">
+          <input type="hidden" id="suspendUserId" name="user_id">
+          <div class="mb-3">
+            <label for="suspendDays" class="form-label">Suspend for (days, 0 = indefinitely):</label>
+            <input type="number" class="form-control" id="suspendDays" name="days" min="0" value="0">
+          </div>
+          <button type="submit" class="btn btn-warning">Suspend</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editUserForm">
+          <input type="hidden" id="editUserId" name="user_id">
+          <div class="mb-3">
+            <label for="editUsername" class="form-label">Username</label>
+            <input type="text" class="form-control" id="editUsername" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="editEmail" class="form-label">Email</label>
+            <input type="email" class="form-control" id="editEmail" name="email" required>
+          </div>
+          <div class="mb-3">
+            <label for="editLanguage" class="form-label">Language</label>
+            <input type="text" class="form-control" id="editLanguage" name="language">
+          </div>
+          <div class="mb-3">
+            <label for="editRole" class="form-label">Role</label>
+            <select class="form-select" id="editRole" name="role">
+              <option value="student">Student</option>
+              <option value="instructor">Instructor</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openSuspendModal(userId, username) {
+  document.getElementById('suspendUserId').value = userId;
+  document.getElementById('suspendDays').value = 0;
+  var modal = new bootstrap.Modal(document.getElementById('suspendUserModal'));
+  modal.show();
+}
+
+document.getElementById('suspendUserForm').onsubmit = function(e) {
+  e.preventDefault();
+  var userId = document.getElementById('suspendUserId').value;
+  var days = document.getElementById('suspendDays').value;
+  fetch(`/moderator/user/${userId}/suspend`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `days=${days}`
+  }).then(r => r.json()).then(data => { location.reload(); });
+};
+
+function unsuspendUser(userId) {
+  fetch(`/moderator/user/${userId}/unsuspend`, {method: 'POST'}).then(r => r.json()).then(data => { location.reload(); });
+}
+
+function deleteUser(userId, username) {
+  if (confirm(`Are you sure you want to delete user '${username}'? This cannot be undone.`)) {
+    fetch(`/moderator/user/${userId}/delete`, {method: 'POST'}).then(r => r.json()).then(data => { location.reload(); });
+  }
+}
+
+function openEditModal(userId, username, email, language, role) {
+  document.getElementById('editUserId').value = userId;
+  document.getElementById('editUsername').value = username;
+  document.getElementById('editEmail').value = email;
+  document.getElementById('editLanguage').value = language;
+  document.getElementById('editRole').value = role;
+  var modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+  modal.show();
+}
+
+document.getElementById('editUserForm').onsubmit = function(e) {
+  e.preventDefault();
+  var userId = document.getElementById('editUserId').value;
+  var formData = new FormData(this);
+  fetch(`/moderator/user/${userId}/edit`, {
+    method: 'POST',
+    body: new URLSearchParams(formData)
+  }).then(r => r.json()).then(data => { location.reload(); });
+};
+</script>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No users found</h5>
+            <p class="text-muted">Add users to get started</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Add New User
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username *</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role *</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="">Select Role</option>
+                            <option value="instructor">Instructor</option>
+                            <option value="moderator">Moderator</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addUser()">
+                    <i class="fas fa-save me-2"></i>
+                    Add User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Statistics -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ users|selectattr('role', 'equalto', 'instructor')|list|length }}</h3>
+                <p class="text-muted mb-0">Instructors</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ users|selectattr('role', 'equalto', 'moderator')|list|length }}</h3>
+                <p class="text-muted mb-0">Moderators</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ users|selectattr('is_active')|list|length }}</h3>
+                <p class="text-muted mb-0">Active Users</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addUser() {
+    // This would be implemented with AJAX to add users
+    alert('User management functionality would be implemented here');
+}
+function sendResetLink(email) {
+    // This would be implemented with backend logic to send a reset link
+    alert('A password reset link will be sent to: ' + email);
+}
+</script>
+{% endblock %} 

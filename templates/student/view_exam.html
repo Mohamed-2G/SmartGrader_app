@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exam.title }} - Exam Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('student.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('student.exams') }}">Available Exams</a></li>
+                    <li class="breadcrumb-item active">{{ exam.title }}</li>
+                </ol>
+            </nav>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2>{{ exam.title }}</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>Subject: {{ exam.subject }}</h5>
+                            {% if exam.description %}
+                                <p class="text-muted">{{ exam.description }}</p>
+                            {% endif %}
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>Total Points</h6>
+                                            <h3 class="text-primary">{{ exam.total_points }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6>Questions</h6>
+                                            <h3 class="text-success">{{ exam.total_questions }}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <h6>Instructions:</h6>
+                                <ul>
+                                    <li>Upload your answer file (PDF, image, or document)</li>
+                                    <li>Make sure your answers are clearly written and legible</li>
+                                    <li>Include your name on the answer sheet</li>
+                                    <li>You can only submit once per exam</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Exam Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Uploaded:</strong> {{ exam.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                    <p><strong>File Type:</strong> {{ exam.file_type.upper() }}</p>
+                                    <p><strong>Status:</strong> 
+                                        <span class="badge bg-success">Available</span>
+                                    </p>
+                                    
+                                    {% if existing_submission %}
+                                        <div class="alert alert-info mt-3">
+                                            <i class="fas fa-info-circle"></i>
+                                            You have already submitted this exam.
+                                            <a href="{{ url_for('student.view_submission', submission_id=existing_submission.id) }}" class="alert-link">
+                                                View your submission
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="mt-3">
+                                            <div class="d-grid gap-2">
+                                                <a href="{{ url_for('student.take_exam', exam_id=exam.id) }}" class="btn btn-primary btn-lg">
+                                                    <i class="fas fa-edit"></i> Take Exam Online
+                                                </a>
+                                                <a href="{{ url_for('student.submit_exam', exam_id=exam.id) }}" class="btn btn-outline-primary">
+                                                    <i class="fas fa-upload"></i> Upload Answer File
+                                                </a>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

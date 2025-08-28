@@ -1,0 +1,324 @@
+{
+  "version": "1.0",
+  "updated": "2025-08-26",
+  "task": "automatic_short_answer_grading",
+  "model_guidance": {
+    "system_prompt": "You are a strict, fair exam grader. Grade based on accuracy, relevance, and completeness—not length or style. Return ONLY a JSON object with keys: score (number), feedback (string). Follow the rubric weights exactly. Penalize factual errors. Reward concise correctness. Never give full credit if required elements are missing. Cite what is correct and what is missing.",
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0
+        },
+        "feedback": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "feedback"
+      ]
+    },
+    "few_shot": [
+      {
+        "question": "Name two causes of the French Revolution.",
+        "rubric": {
+          "Accuracy": 4,
+          "Relevance": 3,
+          "Completeness": 3
+        },
+        "max_points": 10,
+        "student_answer": "Taxes and inequality.",
+        "expected_json": {
+          "score": 8,
+          "feedback": "Correct and relevant: high taxes and social inequality. Missing depth (e.g., financial crisis, Enlightenment ideas)."
+        }
+      },
+      {
+        "question": "Define photosynthesis.",
+        "rubric": {
+          "KeyDefinition": 6,
+          "Detail": 2,
+          "Clarity": 2
+        },
+        "max_points": 10,
+        "student_answer": "Plants make food with sunlight.",
+        "expected_json": {
+          "score": 6,
+          "feedback": "Partially correct. Mentions sunlight but omits carbon dioxide, water, oxygen release, and glucose production."
+        }
+      }
+    ],
+    "format_examples": [
+      {
+        "score": 5,
+        "feedback": "Correct. Identifies X and explains Y concisely."
+      },
+      {
+        "score": 2,
+        "feedback": "Partially correct. Mentions X but misses Y and Z."
+      },
+      {
+        "score": 0,
+        "feedback": "Incorrect or off-topic."
+      }
+    ],
+    "grading_rules": [
+      "Grade content, not length.",
+      "Award partial credit per rubric weights.",
+      "Point out specific correct elements.",
+      "Point out specific missing or incorrect elements.",
+      "Avoid generic praise or vague feedback.",
+      "If answer is blank, score 0 with an encouraging improvement tip."
+    ]
+  },
+  "dataset": [
+    {
+      "id": "hist_001",
+      "subject": "History",
+      "question_type": "short_explain",
+      "question": "Briefly explain why Carthage was important in ancient Mediterranean trade.",
+      "max_points": 5,
+      "rubric": {
+        "TradeRole": 2,
+        "Geography": 1.5,
+        "SpecificEvidence": 1.5
+      },
+      "exemplars": [
+        {
+          "answer": "Carthage controlled key sea routes and traded across the Mediterranean.",
+          "expected_points": 4,
+          "feedback": "Correct trade role and reach. Missing concrete evidence (e.g., Phoenician network, North African goods)."
+        },
+        {
+          "answer": "It was a city in Tunisia.",
+          "expected_points": 1,
+          "feedback": "Relevant but incomplete. Does not mention trade role or geographic position on sea routes."
+        },
+        {
+          "answer": "",
+          "expected_points": 0,
+          "feedback": "No response. Score 0/5. Tip: mention sea routes and goods exchanged."
+        }
+      ]
+    },
+    {
+      "id": "sci_002",
+      "subject": "Biology",
+      "question_type": "definition",
+      "question": "Define osmosis.",
+      "max_points": 5,
+      "rubric": {
+        "CoreDefinition": 3,
+        "Directionality": 1,
+        "Context": 1
+      },
+      "exemplars": [
+        {
+          "answer": "Movement of water through a semipermeable membrane from low solute to high solute concentration.",
+          "expected_points": 5,
+          "feedback": "Complete and precise: water, semipermeable membrane, and correct gradient."
+        },
+        {
+          "answer": "Diffusion of water.",
+          "expected_points": 2,
+          "feedback": "Partially correct. Missing membrane and gradient direction."
+        }
+      ]
+    },
+    {
+      "id": "math_003",
+      "subject": "Mathematics",
+      "question_type": "numeric_reasoning",
+      "question": "Solve: 3x + 5 = 20. Show the value of x.",
+      "max_points": 5,
+      "rubric": {
+        "CorrectValue": 3.5,
+        "MethodShown": 1.5
+      },
+      "exemplars": [
+        {
+          "answer": "x = 5 because 3*5 + 5 = 20",
+          "expected_points": 5,
+          "feedback": "Correct value and justification."
+        },
+        {
+          "answer": "x = 5",
+          "expected_points": 4,
+          "feedback": "Correct value. Minimal method shown; small deduction per rubric."
+        },
+        {
+          "answer": "x = 15",
+          "expected_points": 0,
+          "feedback": "Incorrect. Substituting 15 gives 50, not 20."
+        }
+      ]
+    },
+    {
+      "id": "fr_004",
+      "subject": "French (A2)",
+      "question_type": "personal_statement",
+      "question": "Présentez-vous en 4–5 phrases (nom, âge, nationalité, ville).",
+      "max_points": 5,
+      "rubric": {
+        "AllFieldsPresent": 3,
+        "BasicGrammar": 1,
+        "Clarity": 1
+      },
+      "exemplars": [
+        {
+          "answer": "Bonjour, je m’appelle Lina. J’ai 20 ans. Je suis tunisienne. J’habite à Sfax.",
+          "expected_points": 5,
+          "feedback": "Tous les éléments sont présents et clairs."
+        },
+        {
+          "answer": "Je m’appelle Samir. J’ai 20 ans.",
+          "expected_points": 2,
+          "feedback": "Nom et âge corrects, mais nationalité et ville manquantes."
+        }
+      ]
+    },
+    {
+      "id": "fr_005",
+      "subject": "French (A2)",
+      "question_type": "daily_routine",
+      "question": "Décrivez votre routine quotidienne (matin, après-midi, soir).",
+      "max_points": 5,
+      "rubric": {
+        "CoversAllTimes": 3,
+        "RelevantActivities": 1.5,
+        "Clarity": 0.5
+      },
+      "exemplars": [
+        {
+          "answer": "Le matin je prends mon petit-déjeuner et je vais en cours. L’après-midi j’étudie à la bibliothèque. Le soir je dîne avec ma famille.",
+          "expected_points": 5,
+          "feedback": "Couvre matin, après-midi, soir avec activités pertinentes."
+        },
+        {
+          "answer": "Le matin je vais au cinéma tous les jours.",
+          "expected_points": 1,
+          "feedback": "Activités peu réalistes et ne couvrent pas les trois moments de la journée."
+        }
+      ]
+    },
+    {
+      "id": "cs_006",
+      "subject": "Computer Science",
+      "question_type": "code_explain",
+      "question": "What does Big-O notation describe? Provide a one-sentence definition.",
+      "max_points": 5,
+      "rubric": {
+        "CorrectConcept": 3,
+        "Scope": 1,
+        "Clarity": 1
+      },
+      "exemplars": [
+        {
+          "answer": "It describes the upper bound of an algorithm’s growth rate with respect to input size.",
+          "expected_points": 5,
+          "feedback": "Accurate: upper bound and growth with input size."
+        },
+        {
+          "answer": "It measures speed.",
+          "expected_points": 1,
+          "feedback": "Too vague; does not mention growth rate or input size."
+        }
+      ]
+    },
+    {
+      "id": "eng_007",
+      "subject": "English",
+      "question_type": "compare_contrast",
+      "question": "Compare and contrast a simile and a metaphor in one or two sentences.",
+      "max_points": 5,
+      "rubric": {
+        "DefinesBoth": 2,
+        "DifferenceClear": 2,
+        "ExamplesOrClarity": 1
+      },
+      "exemplars": [
+        {
+          "answer": "A simile compares using 'like' or 'as', while a metaphor states the comparison directly without those words.",
+          "expected_points": 5,
+          "feedback": "Both defined and difference is clear."
+        },
+        {
+          "answer": "They are comparisons.",
+          "expected_points": 1,
+          "feedback": "Incomplete. Missing how they differ and the 'like/as' detail."
+        }
+      ]
+    },
+    {
+      "id": "geo_008",
+      "subject": "Geography",
+      "question_type": "short_answer",
+      "question": "Name two renewable energy sources.",
+      "max_points": 5,
+      "rubric": {
+        "TwoCorrectSources": 5
+      },
+      "exemplars": [
+        {
+          "answer": "Solar and wind.",
+          "expected_points": 5,
+          "feedback": "Two valid renewable sources."
+        },
+        {
+          "answer": "Oil and coal.",
+          "expected_points": 0,
+          "feedback": "Non-renewable sources; no credit."
+        }
+      ]
+    },
+    {
+      "id": "chem_009",
+      "subject": "Chemistry",
+      "question_type": "explain_process",
+      "question": "Explain why salt lowers the freezing point of water.",
+      "max_points": 5,
+      "rubric": {
+        "ColligativeConcept": 2,
+        "Mechanism": 2,
+        "Clarity": 1
+      },
+      "exemplars": [
+        {
+          "answer": "Dissolved ions disrupt ice crystal formation, a colligative property that lowers the freezing point.",
+          "expected_points": 5,
+          "feedback": "Correct mechanism and concept."
+        },
+        {
+          "answer": "Because salt is cold.",
+          "expected_points": 0,
+          "feedback": "Incorrect reasoning; confuses cause and effect."
+        }
+      ]
+    },
+    {
+      "id": "econ_010",
+      "subject": "Economics",
+      "question_type": "short_explain",
+      "question": "What is opportunity cost?",
+      "max_points": 5,
+      "rubric": {
+        "Definition": 3,
+        "ExampleOrContext": 2
+      },
+      "exemplars": [
+        {
+          "answer": "The value of the next best alternative forgone when a choice is made.",
+          "expected_points": 5,
+          "feedback": "Precise definition."
+        },
+        {
+          "answer": "The price you pay.",
+          "expected_points": 1,
+          "feedback": "Too narrow; misses 'next best alternative' idea."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{{ get_text('student_dashboard') }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_submissions }}</h4>
+                            <p class="card-text">{{ get_text('totalsubmissions') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-file-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ graded_submissions }}</h4>
+                            <p class="card-text">{{ get_text('graded') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_submissions - graded_submissions }}</h4>
+                            <p class="card-text">{{ get_text('pending') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ "%.1f"|format(average_score) }}%</h4>
+                            <p class="card-text">{{ get_text('averagescore') }}</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>🚀 {{ get_text('quickactions') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ url_for('student.exams') }}" class="btn btn-primary">
+                                                          <i class="fas fa-list"></i> {{ get_text('viewavailableexams') }}
+                        </a>
+                        <a href="{{ url_for('student.submissions') }}" class="btn btn-outline-primary">
+                                                          <i class="fas fa-file-alt"></i> {{ get_text('mysubmissions') }}
+                        </a>
+                        <a href="{{ url_for('student.results') }}" class="btn btn-outline-success">
+                                                          <i class="fas fa-chart-bar"></i> {{ get_text('viewresults') }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Available Exams -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>📄 {{ get_text('availableexams') }}</h5>
+                                          <a href="{{ url_for('student.exams') }}" class="btn btn-sm btn-outline-primary">{{ get_text('viewall') }}</a>
+                </div>
+                <div class="card-body">
+                    {% if available_exams %}
+                        <div class="list-group list-group-flush">
+                            {% for exam in available_exams[:5] %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">{{ exam.title }}</h6>
+                                        <p class="mb-1 text-muted small">
+                                            <i class="fas fa-calendar"></i> {{ exam.uploaded_at.strftime('%Y-%m-%d') }}
+                                            {% if exam.subject %}
+                                                <br><i class="fas fa-book"></i> {{ exam.subject }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="mt-2">
+                                            <span class="badge bg-info">{{ exam.total_questions }} Questions</span>
+                                            <span class="badge bg-secondary">{{ exam.total_points }} Points</span>
+                                        </div>
+                                    </div>
+                                    <div class="ms-3">
+                                        <a href="{{ url_for('student.view_exam', exam_id=exam.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No exams available yet.</p>
+                            <p class="text-muted small">Check back later for new exams.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Submissions -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>📝 Recent Submissions</h5>
+                    <a href="{{ url_for('student.submissions') }}" class="btn btn-sm btn-outline-success">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if student_submissions %}
+                        <div class="list-group list-group-flush">
+                            {% for submission in student_submissions[:5] %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">{{ submission.uploaded_exam.title }}</h6>
+                                        <p class="mb-1 text-muted small">
+                                            <i class="fas fa-calendar"></i> {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                                        </p>
+                                        <div class="mt-2">
+                                            {% if submission.is_graded %}
+                                                <span class="badge bg-success">Graded</span>
+                                                <span class="badge bg-info">{{ submission.total_score }}/{{ submission.max_score }}</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">{{ submission.grading_status|title }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="ms-3">
+                                        <a href="{{ url_for('student.view_submission', submission_id=submission.id) }}" 
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No submissions yet.</p>
+                            <p class="text-muted small">Submit your first exam to see it here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

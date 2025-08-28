@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Exam Submissions - SmartGrader{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-users me-2"></i>
+        Exam Submissions
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('instructor_exams') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>
+            Back to Exams
+        </a>
+        <button class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#addSubmissionModal">
+            <i class="fas fa-plus me-2"></i>
+            Add Submission
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>
+                    {{ exam.title }}
+                </h5>
+                <small class="text-muted">{{ exam.subject }} • {{ submissions|length }} submissions</small>
+            </div>
+            <div class="card-body">
+                {% if submissions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Submitted</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for submission in submissions %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ submission.student_name }}</strong>
+                                            {% if submission.student_id %}
+                                                <br><small class="text-muted">ID: {{ submission.student_id }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small>{{ submission.submitted_at.strftime('%m/%d/%Y %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        {{ submission.total_score }} / {{ submission.max_score }}
+                                    </td>
+                                    <td>
+                                        {% if submission.is_graded %}
+                                            <span class="badge bg-success">Graded</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="#" class="btn btn-outline-primary" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="#" class="btn btn-outline-success" title="Grade">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                        <p class="mb-0">No submissions yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

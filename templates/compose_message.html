@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Compose Message - SmartGrader{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-edit me-2"></i>Compose Message</h1>
+                <a href="{{ url_for('messages') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Messages
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="recipient" class="form-label">To:</label>
+                            <select class="form-select" id="recipient" name="recipient" required>
+                                <option value="">Select recipient...</option>
+                                {% for user in users %}
+                                    {% if user.id != current_user.id %}
+                                        <option value="{{ user.username }}">
+                                            {{ user.username }} ({{ user.role|title }}) - {{ user.email }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Select a user to send your message to.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Subject:</label>
+                            <input type="text" class="form-control" id="subject" name="subject" 
+                                   placeholder="Enter subject..." required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Message:</label>
+                            <textarea class="form-control" id="content" name="content" rows="8" 
+                                      placeholder="Type your message here..." required></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Send Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const recipientSelect = document.getElementById('recipient');
+    const options = recipientSelect.querySelectorAll('option');
+
+    // Handle reply functionality
+    const urlParams = new URLSearchParams(window.location.search);
+    const replyTo = urlParams.get('reply_to');
+    if (replyTo) {
+        // Find the option with the reply_to username
+        options.forEach(option => {
+            if (option.value === replyTo) {
+                recipientSelect.value = replyTo;
+                // Set subject if it's a reply
+                const subject = urlParams.get('subject');
+                if (subject) {
+                    document.getElementById('subject').value = 'Re: ' + subject;
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

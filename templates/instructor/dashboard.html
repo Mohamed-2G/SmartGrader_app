@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}{{ get_text('instructordashboard') }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-chalkboard-teacher me-2"></i>
+        {{ get_text('instructordashboard') }}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('instructor.upload_exam') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            {{ get_text('createnewexam') }}
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_exams }}</h4>
+                        <p class="card-text">{{ get_text('totalexams') }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_submissions }}</h4>
+                        <p class="card-text">{{ get_text('totalsubmissions') }}
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ pending_grading }}</h4>
+                        <p class="card-text">{{ get_text('pendinggrading') }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_submissions - pending_grading }}</h4>
+                        <p class="card-text">{{ get_text('graded') }}</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>🚀 {{ get_text('quickactions') }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('instructor.upload_exam') }}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> {{ get_text('uploadnewexam') }}
+                    </a>
+                    <a href="{{ url_for('instructor.exams') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> {{ get_text('viewallexams') }}
+                    </a>
+                    <a href="{{ url_for('instructor.all_submissions') }}" class="btn btn-outline-success">
+                        <i class="fas fa-users"></i> {{ get_text('viewallsubmissions') }}
+                    </a>
+                    <a href="{{ url_for('ai_grading.test_grading_page') }}" class="btn btn-outline-info">
+                        <i class="fas fa-cog"></i> {{ get_text('testaigrading') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Uploaded Exams -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5> {{ get_text('recentexams') }}</h5>
+                <a href="{{ url_for('instructor.exams') }}" class="btn btn-sm btn-outline-primary">{{ get_text('viewall') }}</a>
+            </div>
+            <div class="card-body">
+                {% if uploaded_exams %}
+                    <div class="list-group list-group-flush">
+                        {% for exam in uploaded_exams[:5] %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ exam.title }}</h6>
+                                    <p class="mb-1 text-muted small">
+                                        <i class="fas fa-calendar"></i> {{ exam.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% if exam.subject %}
+                                            <br><i class="fas fa-book"></i> {{ exam.subject }}
+                                        {% endif %}
+                                    </p>
+                                    <div class="mt-2">
+                                        {% if exam.is_processed %}
+                                            <span class="badge bg-success">{{ get_text('examprocessed') }}</span>
+                                            <span class="badge bg-info">{{ exam.total_questions }} {{ get_text('examquestions') }}</span>
+                                            <span class="badge bg-secondary">{{ exam.total_points }} {{ get_text('exampoints') }}</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{{ exam.processing_status|title }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="ms-3">
+                                    <a href="{{ url_for('instructor.view_exam', exam_id=exam.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> {{ get_text('view') }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">{{ get_text('noexamsuploaded') }}</p>
+                        <a href="{{ url_for('instructor.upload_exam') }}" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> {{ get_text('uploadfirstexam') }}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Submissions -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5> {{ get_text('recentsubmissions') }}</h5>
+                <a href="{{ url_for('instructor.all_submissions') }}" class="btn btn-sm btn-outline-success">{{ get_text('viewall') }}</a>
+            </div>
+            <div class="card-body">
+                {% if recent_submissions %}
+                    <div class="list-group list-group-flush">
+                        {% for submission in recent_submissions[:5] %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ submission.student_name }}</h6>
+                                    <p class="mb-1 text-muted small">
+                                        <i class="fas fa-calendar"></i> {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+                                        <br><i class="fas fa-id-card"></i> {{ submission.student_id }}
+                                    </p>
+                                    <div class="mt-2">
+                                        {% if submission.is_graded %}
+                                            <span class="badge bg-success">{{ get_text('graded') }}</span>
+                                            <span class="badge bg-info">{{ submission.total_score }}/{{ submission.max_score }}</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{{ submission.grading_status|title }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="ms-3">
+                                    <a href="{{ url_for('instructor.view_submission', submission_id=submission.id) }}" 
+                                       class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-eye"></i> {{ get_text('view') }}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">{{ get_text('nosubmissions') }}</p>
+                        <p class="text-muted small">{{ get_text('nosubmissionsmessage') }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

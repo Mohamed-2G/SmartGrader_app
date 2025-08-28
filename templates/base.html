@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SmartGrader{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+
+        
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+        }
+        .sidebar .nav-link:hover {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+        }
+        .sidebar .nav-link.active {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            position: relative;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: 0.75rem;
+        }
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 0.75rem 0.75rem 0 0 !important;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 0.5rem;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 1rem;
+        }
+        .alert {
+            border-radius: 0.75rem;
+            border: none;
+        }
+        
+        /* Language selector styles */
+        .language-selector {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+        
+        .language-selector select {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        /* Logout button styles */
+        .logout-button {
+            margin-top: 10px;
+        }
+        
+        .logout-button .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .logout-button .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.6);
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        /* Message notification badge styles */
+        #message-notification-badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+            min-width: 1.2rem;
+            height: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <select id="languageSelect" onchange="changeLanguage(this.value)">
+            <option value="english" {% if current_user.language == 'english' %}selected{% endif %}>English</option>
+            <option value="french" {% if current_user.language == 'french' %}selected{% endif %}>Français</option>
+            <option value="arabic" {% if current_user.language == 'arabic' %}selected{% endif %}>العربية</option>
+            <option value="turkish" {% if current_user.language == 'turkish' %}selected{% endif %}>Türkçe</option>
+        </select>
+    </div>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">
+                            <i class="fas fa-graduation-cap me-2"></i>
+                            SmartGrader
+                        </h4>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        {% if current_user.role == 'instructor' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('instructor.dashboard') }}">
+                                <i class="fas fa-chalkboard-teacher"></i> {{ get_text('instructor_dashboard') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                             <a class="nav-link" href="{{ url_for('instructor.exams') }}">
+                                 <i class="fas fa-file-alt me-2"></i>
+                                 {{ get_text('my_exams') }}
+                             </a>
+                         </li>
+                         <li class="nav-item">
+                             <a class="nav-link" href="{{ url_for('instructor.upload_exam') }}">
+                                 <i class="fas fa-plus me-2"></i>
+                                 {{ get_text('create_exam') }}
+                             </a>
+                         </li>
+                        {% elif current_user.role == 'moderator' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('moderator.dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                {{ get_text('dashboard') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('moderator.moderator_users') }}">
+                                <i class="fas fa-users me-2"></i>
+                                {{ get_text('users') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('moderator.moderator_system') }}">
+                                <i class="fas fa-cog me-2"></i>
+                                {{ get_text('system') }}
+                            </a>
+                        </li>
+                        {% elif current_user.role == 'student' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('student.dashboard') }}">
+                                <i class="fas fa-user-graduate"></i> {{ get_text('student_dashboard') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('student.exams') }}">
+                                <i class="fas fa-file-alt"></i> {{ get_text('available_exams') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('student.submissions') }}">
+                                <i class="fas fa-history"></i> {{ get_text('my_submissions') }}
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Common Features for All Users -->
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{{ url_for('messages') }}" id="messages-link">
+                                <i class="fas fa-envelope me-2"></i>
+                                {{ get_text('messages') }}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="message-notification-badge" style="display: none;">
+                                    0
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <hr class="text-white">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <span class="nav-link text-white-50">
+                                <i class="fas fa-user me-2"></i>
+                                {{ current_user.username }}
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <div class="logout-button">
+                                <a href="{{ url_for('logout') }}" class="btn">
+                                    <i class="fas fa-sign-out-alt me-2"></i>
+                                    {{ get_text('logout') }}
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <div class="pt-3 pb-2 mb-3">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+    {% else %}
+        {% block auth_content %}{% endblock %}
+    {% endif %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function changeLanguage(language) {
+            fetch('/change_language', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    language: language
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to apply the new language
+                    window.location.reload();
+                } else {
+                    alert('Error changing language: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error changing language. Please try again.');
+            });
+        }
+
+        // Message notification system
+        function updateMessageNotification() {
+            fetch('/api/unread_messages_count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('message-notification-badge');
+                    if (badge) {
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating message notification:', error);
+                });
+        }
+
+        // Update notification on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateMessageNotification();
+            
+            // Update notification every 30 seconds
+            setInterval(updateMessageNotification, 30000);
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

@@ -237,11 +237,11 @@ def change_language():
         if not code:
             return jsonify({'success': False, 'error': 'Invalid language'}), 400
 
+        # Persist preference on both the user (if logged in) and the session
         if current_user.is_authenticated:
             current_user.language = code
             db.session.commit()
-        else:
-            session['language'] = code
+        session['language'] = code
 
         return jsonify({'success': True, 'language': code})
     except Exception as e:

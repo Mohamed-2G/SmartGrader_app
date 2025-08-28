@@ -289,8 +289,13 @@
             });
         }
 
-        // Message notification system
+        // Message notification system (initialize only if badge exists)
         function updateMessageNotification() {
+            window._sg = window._sg || {};
+            if (window._sg.isUpdatingMessageNotification) {
+                return; // prevent concurrent requests
+            }
+            window._sg.isUpdatingMessageNotification = true;
             fetch('/api/unread_messages_count')
                 .then(response => response.json())
                 .then(data => {
@@ -306,15 +311,27 @@
                 })
                 .catch(error => {
                     console.error('Error updating message notification:', error);
+                })
+                .finally(() => {
+                    window._sg.isUpdatingMessageNotification = false;
                 });
         }
 
         // Update notification on page load
         document.addEventListener('DOMContentLoaded', function() {
-            updateMessageNotification();
-            
-            // Update notification every 30 seconds
-            setInterval(updateMessageNotification, 30000);
+            const badge = document.getElementById('message-notification-badge');
+            if (!badge) {
+                return; // Not an authenticated layout (no sidebar/badge)
+            }
+            window._sg = window._sg || {};
+            if (!window._sg.messageNotificationInitialized) {
+                window._sg.messageNotificationInitialized = true;
+                updateMessageNotification();
+                // Update notification every 30 seconds (single interval)
+                if (!window._sg.messageNotificationIntervalId) {
+                    window._sg.messageNotificationIntervalId = setInterval(updateMessageNotification, 30000);
+                }
+            }
         });
     </script>
     

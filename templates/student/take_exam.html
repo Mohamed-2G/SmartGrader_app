@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Take Exam - SmartGrader{% endblock %}
+{% block title %}{{ get_text('student_take_exam') }} - SmartGrader{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -11,7 +11,7 @@
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i>
-            Back to Dashboard
+            {{ get_text('back_to_dashboard') }}
         </a>
     </div>
 </div>
@@ -22,9 +22,9 @@
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-question-circle me-2"></i>
-                    Exam Questions
+                    {{ get_text('exam_questions_header') }}
                 </h5>
-                                        <small class="text-muted">{{ exam.subject or 'General' }} • {{ exam.questions|length }} questions • {{ exam.total_points }} total points</small>
+                                        <small class="text-muted">{{ exam.subject or get_text('general_label') }} • {{ exam.questions|length }} {{ get_text('questions_label')|lower }} • {{ exam.total_points }} {{ get_text('total_points_label')|lower }}</small>
             </div>
             <div class="card-body">
                 {% if exam.questions and exam.questions|length > 0 %}
@@ -32,8 +32,8 @@
                         {% for question in exam.questions %}
                         <div class="mb-4 p-3 border rounded">
                             <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h6 class="mb-0">Question {{ loop.index }}</h6>
-                                <span class="badge bg-primary">{{ question.points }} points</span>
+                                <h6 class="mb-0">{{ get_text('question_label') }} {{ loop.index }}</h6>
+                                <span class="badge bg-primary">{{ question.points }} {{ get_text('points_label') }}</span>
                             </div>
                             
                             <div class="mb-3">
@@ -41,13 +41,13 @@
                             </div>
                             
                             <div class="mb-3">
-                                <label for="answer_{{ question.id }}" class="form-label">Your Answer:</label>
+                                <label for="answer_{{ question.id }}" class="form-label">{{ get_text('your_answer_label') }}:</label>
                                 <textarea 
                                     class="form-control" 
                                     id="answer_{{ question.id }}" 
                                     name="answer_{{ question.id }}" 
                                     rows="4" 
-                                    placeholder="Type your answer here..."
+                                    placeholder="{{ get_text('type_answer_placeholder') }}"
                                 ></textarea>
                             </div>
                             
@@ -55,16 +55,14 @@
                             <div class="mb-3">
                                 <label for="file_{{ question.id }}" class="form-label">
                                     <i class="fas fa-paperclip me-1"></i>
-                                    Upload File (Optional):
+                                    {{ get_text('upload_file_optional') }}
                                 </label>
                                 <input type="file" 
                                        class="form-control" 
                                        id="file_{{ question.id }}" 
                                        name="file_{{ question.id }}"
                                        accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.txt">
-                                <div class="form-text">
-                                    Upload PDF, image, or document files. AI will analyze handwritten work and images.
-                                </div>
+                                <div class="form-text">{{ get_text('upload_file_help') }}</div>
                             </div>
                         </div>
                         {% endfor %}
@@ -73,12 +71,10 @@
                         <div class="mb-4 p-3 border rounded bg-light">
                             <h6 class="mb-3">
                                 <i class="fas fa-upload me-2"></i>
-                                Complete Answer File (Optional)
+                                {{ get_text('complete_answer_file_optional') }}
                             </h6>
                             <div class="mb-3">
-                                <label for="main_submission_file" class="form-label">
-                                    Upload Complete Answer File:
-                                </label>
+                                <label for="main_submission_file" class="form-label">{{ get_text('upload_complete_answer_label') }}</label>
                                 <input type="file" 
                                        class="form-control" 
                                        id="main_submission_file" 
@@ -102,19 +98,19 @@
                         <div class="d-flex justify-content-between">
                             <button type="button" class="btn btn-secondary" onclick="saveProgress()">
                                 <i class="fas fa-save me-2"></i>
-                                Save Progress
+                                {{ get_text('save_progress') }}
                             </button>
                             <button type="submit" class="btn btn-primary" onclick="submitExam(event)">
                                 <i class="fas fa-paper-plane me-2"></i>
-                                Submit Exam
+                                {{ get_text('student_submit_exam') }}
                             </button>
                         </div>
                     </form>
                 {% else %}
                     <div class="text-center py-4">
                         <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h5 class="text-warning">No Questions Available</h5>
-                        <p class="text-muted">This exam doesn't have any questions yet.</p>
+                        <h5 class="text-warning">{{ get_text('no_questions_available') }}</h5>
+                        <p class="text-muted">{{ get_text('no_questions_yet') }}</p>
                     </div>
                 {% endif %}
             </div>
@@ -126,30 +122,30 @@
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-info-circle me-2"></i>
-                    Exam Information
+                    {{ get_text('exam_information') }}
                 </h5>
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <strong>Exam:</strong> {{ exam.title }}
+                    <strong>{{ get_text('exam_label') }}:</strong> {{ exam.title }}
                 </div>
                 <div class="mb-3">
-                    <strong>Subject:</strong> {{ exam.subject or 'General' }}
+                    <strong>{{ get_text('subject_label') }}:</strong> {{ exam.subject or get_text('general_label') }}
                 </div>
                 <div class="mb-3">
-                    <strong>Questions:</strong> {{ exam.questions|length }}
+                    <strong>{{ get_text('questions_label') }}:</strong> {{ exam.questions|length }}
                 </div>
                 <div class="mb-3">
-                    <strong>Total Points:</strong> {{ exam.total_points }}
+                    <strong>{{ get_text('total_points_label') }}:</strong> {{ exam.total_points }}
                 </div>
                 <div class="mb-3">
-                    <strong>Time Limit:</strong> No time limit
+                    <strong>{{ get_text('time_limit_label') }}:</strong> {{ get_text('no_time_limit') }}
                 </div>
                 
                 <hr>
                 
                 <div class="mb-3">
-                    <h6>Progress</h6>
+                    <h6>{{ get_text('progress_label') }}</h6>
                     <div class="progress mb-2">
                         <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
                     </div>
@@ -178,17 +174,17 @@
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
-                    Confirm Submission
+                    {{ get_text('confirm_submission') }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to submit this exam?</p>
-                <p class="text-muted small">Once submitted, you cannot change your answers.</p>
+                <p>{{ get_text('confirm_submit_exam') }}</p>
+                <p class="text-muted small">{{ get_text('submit_final_notice') }}</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmSubmit()">Submit Exam</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ get_text('btn_cancel') }}</button>
+                <button type="button" class="btn btn-primary" onclick="confirmSubmit()">{{ get_text('student_submit_exam') }}</button>
             </div>
         </div>
     </div>

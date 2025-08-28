@@ -34,7 +34,7 @@ class ExamGrader:
         }
         
         # Model selection for different tasks
-        self.grading_model = "deepseek-reasoner"  # For complex grading tasks
+        self.grading_model = "deepseek-chat"  # For complex grading tasks
         self.chat_model = "deepseek-chat"         # For simple tasks like extraction
         
         print("DeepSeek API initialized successfully!")

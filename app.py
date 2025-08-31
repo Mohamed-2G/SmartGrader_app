@@ -5,8 +5,9 @@ Main Flask application with teacher and moderator interfaces
 
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
+import mimetypes
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_mail import Message
+# Removed direct Message import (email sending disabled)
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -22,7 +23,7 @@ import time
 from src.services.grader.prompt_builder import format_json_grading_prompt
 from src.services.grader.exam_grader import ExamGrader
 
-from src.utils.helpers import extract_text_from_pdf, extract_text_from_image
+# Helper functions are imported as needed in specific routes
 
 # Import config and extensions
 from src.core.config import Config, DEEPSEEK_API_KEY
@@ -47,6 +48,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # 30 days
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Initialize extensions
 db.init_app(app)
@@ -55,7 +57,7 @@ migrate.init_app(app, db)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-from src.core.models import User, Exam, Question, Submission, Answer, Message as UserMessage, SystemSettings
+from src.core.models import User, Message as UserMessage, UploadedExam, StudentSubmission, QuestionAnswer, SystemSettings
 from src.utils.translations import get_text, get_language, set_language, get_languages, LANGUAGES, init_app
 
 # Initialize translation system
@@ -75,60 +77,18 @@ def nl2br_filter(text):
     from markupsafe import Markup
     return Markup(text.replace('\n', '<br>'))
 
-# Language switching route
-@app.route('/change_language/<language>')
-def change_language(language):
-    """Change the current language"""
-    if language in LANGUAGES:
-        set_language(language)
-        # Update user's language preference if authenticated
-        if current_user.is_authenticated:
-            current_user.language = language
-            db.session.commit()
-    return redirect(request.referrer or url_for('index'))
-
-# Demo route to show translations - REMOVED (unused)
 
 # Context processor for translations
 @app.context_processor
 def inject_translations():
     return {
         'get_text': get_text,
+        't': get_text,
         'get_language': get_language,
         'get_languages': get_languages,
         'LANGUAGES': LANGUAGES,
         'current_language': get_language()
     }
-
-# Messaging System Routes
-@app.route('/messages')
-@login_required
-def messages():
-    """View all messages for current user"""
-    try:
-        received_messages = UserMessage.query.filter_by(recipient_id=current_user.id).order_by(UserMessage.sent_at.desc()).all()
-        sent_messages = UserMessage.query.filter_by(sender_id=current_user.id).order_by(UserMessage.sent_at.desc()).all()
-        return render_template('messages.html', 
-                             received_messages=received_messages,
-                             sent_messages=sent_messages)
-    except Exception as e:
-        print(f"Error loading messages: {e}")
-        flash('Error loading messages. Please try again.', 'error')
-        return redirect(url_for('index'))
-
-@app.route('/api/unread_messages_count')
-@login_required
-def get_unread_messages_count():
-    """Get count of unread messages for current user"""
-    try:
-        unread_count = UserMessage.query.filter_by(
-            recipient_id=current_user.id, 
-            is_read=False
-        ).count()
-        return jsonify({'count': unread_count})
-    except Exception as e:
-        print(f"Error getting unread messages count: {e}")
-        return jsonify({'count': 0})
 
 # Routes
 @app.route('/')
@@ -136,12 +96,10 @@ def index():
     if current_user.is_authenticated:
         if current_user.role == 'instructor':
             return redirect(url_for('instructor.dashboard'))
-        elif current_user.role == 'student':
-            return redirect(url_for('student.dashboard'))
         elif current_user.role == 'moderator':
             return redirect(url_for('moderator.dashboard'))
         else:
-            return redirect(url_for('index'))
+            return redirect(url_for('student.dashboard'))
     return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -161,12 +119,11 @@ def login():
             session['language'] = language
             
             flash(get_text('login_successful', language), 'success')
+            if user.role == 'instructor':
+                return redirect(url_for('instructor.dashboard'))
             if user.role == 'moderator':
                 return redirect(url_for('moderator.dashboard'))
-            elif user.role == 'student':
-                return redirect(url_for('student.dashboard'))
-            elif user.role == 'instructor':
-                return redirect(url_for('instructor.dashboard'))
+            return redirect(url_for('student.dashboard'))
         else:
             flash(get_text('invalid_credentials', 'english'), 'error')
     return render_template('login.html')
@@ -188,32 +145,54 @@ def logout():
 # Register blueprints
 from src.api.routes.student import student_bp
 from src.api.routes.instructor import instructor_bp
-from src.api.routes.moderator import moderator_bp
 from src.api.routes.ai_grading import ai_grading_bp
 # from src.api.routes.file_upload import file_upload_bp
 from src.api.routes.auth import auth_bp
+# Removed settings API in favor of moderator UI-only settings
+from src.api.routes.moderator import moderator_bp
 
 app.register_blueprint(student_bp)
 app.register_blueprint(instructor_bp)
-app.register_blueprint(moderator_bp)
 app.register_blueprint(ai_grading_bp)
 # app.register_blueprint(file_upload_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(moderator_bp)
+
+# Messaging Routes
+@app.route('/messages')
+@login_required
+def messages():
+    """Display user's messages (inbox and sent)"""
+    # Get received messages
+    received_messages = UserMessage.query.filter_by(recipient_id=current_user.id).order_by(UserMessage.sent_at.desc()).all()
+    
+    # Get sent messages
+    sent_messages = UserMessage.query.filter_by(sender_id=current_user.id).order_by(UserMessage.sent_at.desc()).all()
+    
+    return render_template('messages.html', 
+                         received_messages=received_messages, 
+                         sent_messages=sent_messages)
 
 @app.route('/compose_message', methods=['GET', 'POST'])
 @login_required
 def compose_message():
-    """Compose a new message"""
+    """Compose and send a new message"""
     if request.method == 'POST':
         recipient_username = request.form.get('recipient')
-        subject = request.form.get('subject')
+        subject = request.form.get('subject', '')
         content = request.form.get('content')
         
+        if not content:
+            flash('Message content is required.', 'error')
+            return redirect(url_for('compose_message'))
+        
+        # Find recipient by username
         recipient = User.query.filter_by(username=recipient_username).first()
         if not recipient:
-            flash('Recipient not found', 'error')
-            return render_template('compose_message.html', users=get_all_users())
+            flash('Recipient not found.', 'error')
+            return redirect(url_for('compose_message'))
         
+        # Create and save message
         message = UserMessage(
             sender_id=current_user.id,
             recipient_id=recipient.id,
@@ -221,21 +200,19 @@ def compose_message():
             content=content
         )
         
-        db.session.add(message)
-        db.session.commit()
-        
-        flash('Message sent successfully!', 'success')
-        return redirect(url_for('messages'))
+        try:
+            db.session.add(message)
+            db.session.commit()
+            flash('Message sent successfully!', 'success')
+            return redirect(url_for('messages'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error sending message. Please try again.', 'error')
+            return redirect(url_for('compose_message'))
     
-    # Get all users for the recipient dropdown
-    users = get_all_users()
+    # GET request - show compose form
+    users = User.query.filter(User.id != current_user.id).all()
     return render_template('compose_message.html', users=users)
-
-def get_all_users():
-    """Get all active users for messaging"""
-    return User.query.filter_by(is_active=True).order_by(User.username).all()
-
-  
 
 @app.route('/messages/<int:message_id>')
 @login_required
@@ -245,79 +222,38 @@ def view_message(message_id):
     
     # Check if user is sender or recipient
     if message.sender_id != current_user.id and message.recipient_id != current_user.id:
-        flash('Access denied', 'error')
+        flash('You do not have permission to view this message.', 'error')
         return redirect(url_for('messages'))
     
-    # Mark as read if recipient
+    # Mark as read if user is recipient
     if message.recipient_id == current_user.id and not message.is_read:
         message.is_read = True
         db.session.commit()
     
     return render_template('view_message.html', message=message)
 
+@app.route('/api/unread_messages_count')
+@login_required
+def unread_messages_count():
+    """API endpoint to get count of unread messages"""
+    count = UserMessage.query.filter_by(recipient_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
+
 @app.route('/api/mark_all_messages_read', methods=['POST'])
 @login_required
 def mark_all_messages_read():
-    """Mark all unread messages as read for current user"""
+    """API endpoint to mark all messages as read"""
     try:
-        unread_messages = UserMessage.query.filter_by(
-            recipient_id=current_user.id, 
-            is_read=False
-        ).all()
-        
+        unread_messages = UserMessage.query.filter_by(recipient_id=current_user.id, is_read=False).all()
         for message in unread_messages:
             message.is_read = True
-        
         db.session.commit()
-        return jsonify({'success': True, 'count': len(unread_messages)})
+        return jsonify({'success': True})
     except Exception as e:
-        print(f"Error marking messages as read: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
 
-# File Upload Routes - REMOVED (functionality disabled)
-
-# API Routes for AI Grading
-@app.route('/api/grade', methods=['POST'])
-@login_required
-def grade_answer():
-    data = request.get_json()
-    question_text = data.get('question')
-    rubric = json.loads(data.get('rubric'))
-    student_answer = data.get('answer')
-    
-    try:
-        # Use DeepSeek API for grading
-        print("Using DeepSeek API for grading...")
-        api_grader = ExamGrader(DEEPSEEK_API_KEY)
-        
-        result = api_grader.grade_with_structured_rubric(
-            student_answer=student_answer,
-            rubric_data=rubric,
-            question_text=question_text
-        )
-        
-        # Check if there was an error in grading
-        if result.get('error'):
-            return jsonify({
-                'success': False,
-                'error': result.get('feedback', 'Grading failed'),
-                'raw_response': result.get('raw_response', '')
-            }), 500
-        
-        return jsonify({
-            'success': True,
-            'score': result.get("score", 0),
-            'max_score': result.get("max_score", 100),
-            'feedback': result.get("feedback", "No feedback provided"),
-            'breakdown': result.get("breakdown", {}),
-            'model_used': 'deepseek_api'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# Migration command removed - all files are now stored directly in database BLOBs
 
 # Registration Route
 @app.route('/register', methods=['GET', 'POST'])
@@ -395,23 +331,23 @@ def register():
             session['language'] = language
             
             # Send welcome email
-            try:
-                msg = Message('Welcome to SmartGrader!', recipients=[email])
-                msg.body = f"""Hello {name or username},
-
-Welcome to SmartGrader! Your account has been created successfully.
-
-Your login credentials:
-Username: {username}
-Email: {email}
-
-You can now log in to your account and start using SmartGrader.
-
-Best regards,
-The SmartGrader Team"""
-                mail.send(msg)
-            except Exception as e:
-                print(f"Error sending welcome email: {e}")
+            # try:
+            #     msg = Message('Welcome to SmartGrader!', recipients=[email])
+            #     msg.body = f"""Hello {name or username},
+            #
+            # Welcome to SmartGrader! Your account has been created successfully.
+            #
+            # Your login credentials:
+            # Username: {username}
+            # Email: {email}
+            #
+            # You can now log in to your account and start using SmartGrader.
+            #
+            # Best regards,
+            # The SmartGrader Team"""
+            #     mail.send(msg)
+            # except Exception as e:
+            #     print(f"Error sending welcome email: {e}")
             
             if request.is_json:
                 return jsonify({'success': True, 'message': 'Registration successful! Please check your email.'})

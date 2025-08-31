@@ -6,47 +6,23 @@ Handles instructor-specific functionality for uploading exams and managing stude
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from datetime import datetime
-import os
+# Removed os import - no longer needed for filesystem operations
 import json
 from werkzeug.utils import secure_filename
+from io import BytesIO
 
 from src.core.models import UploadedExam, StudentSubmission, QuestionAnswer, db
-from src.core.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from src.core.config import ALLOWED_EXTENSIONS
 from src.api.routes.ai_grading import grade_with_deepseek, grade_with_fallback
 from src.services.grader.exam_grader import ExamGrader
 
 from src.core.config import DEEPSEEK_API_KEY
-from src.utils.helpers import extract_text_from_pdf, extract_text_from_image, allowed_file
+from src.utils.helpers import allowed_file, extract_text_from_any
 
 # Create Blueprint
 instructor_bp = Blueprint('instructor', __name__)
 
-def extract_text_from_file(file_path, file_type):
-    """Extract text content from different file types using improved helpers"""
-    try:
-        if file_type == 'pdf':
-            # Use improved PDF extraction from helpers
-            return extract_text_from_pdf(file_path)
-        
-        elif file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff']:
-            # Use improved image OCR from helpers
-            return extract_text_from_image(file_path)
-        
-        elif file_type in ['txt', 'doc', 'docx', 'document', 'text']:
-            # For text files, read directly
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-                return file.read().strip()
-        
-        elif file_type == 'image':
-            # Handle generic 'image' type
-            return extract_text_from_image(file_path)
-        
-        else:
-            return f"Unsupported file type: {file_type}. Supported types: PDF, images (JPG, PNG, GIF, BMP, TIFF), and text files (TXT, DOC, DOCX)"
-            
-    except Exception as e:
-        print(f"Error extracting text from {file_path}: {e}")
-        return f"Error extracting text: {str(e)}"
+# Removed filesystem-based text extraction - now using database BLOB extraction via helpers.extract_text_from_any()
 
 def extract_answer_for_question(submission_text, question_number, question_text):
     """Extract the specific answer for a given question from the submission text"""
@@ -349,22 +325,22 @@ def extract_questions_with_ai(exam_text, grader):
                                 })
                         
                         if formatted_questions:
-                            print(f"✅ Successfully extracted {len(formatted_questions)} questions via JSON")
+                            print(f" Successfully extracted {len(formatted_questions)} questions via JSON")
                             return formatted_questions
                 except (json.JSONDecodeError, KeyError) as e:
-                    print(f"❌ Failed to parse JSON response: {e}")
+                    print(f" Failed to parse JSON response: {e}")
             else:
-                print(f"❌ API request failed: {response.status_code} - {response.text}")
+                print(f" API request failed: {response.status_code} - {response.text}")
                 
         except Exception as e:
-            print(f"❌ Direct API call failed: {e}")
+            print(f"Direct API call failed: {e}")
         
         # Fallback to direct text parsing if AI fails
-        print("🔄 Falling back to direct text parsing...")
+        print("Falling back to direct text parsing...")
         return extract_questions_directly(exam_text)
         
     except Exception as e:
-        print(f"❌ Error in question extraction: {e}")
+        print(f" Error in question extraction: {e}")
         return extract_questions_directly(exam_text)
 
 def extract_questions_directly(exam_text):
@@ -372,7 +348,7 @@ def extract_questions_directly(exam_text):
     try:
         import re
         
-        print("🔍 Direct text parsing mode (format agnostic)...")
+        print(" Direct text parsing mode (format agnostic)...")
         questions = []
         lines = exam_text.split('\n')
         current_question = None
@@ -506,11 +482,11 @@ def extract_questions_directly(exam_text):
         if current_question:
             questions.append(current_question)
         
-        print(f"📝 Direct parsing extracted {len(questions)} questions")
+        print(f" Direct parsing extracted {len(questions)} questions")
         
         # If still no questions found, create a basic fallback
         if not questions:
-            print("⚠️ No questions found in direct parsing, creating basic fallback...")
+            print("No questions found in direct parsing, creating basic fallback...")
             questions = [
                 {
                     'number': 1,
@@ -522,7 +498,7 @@ def extract_questions_directly(exam_text):
         return questions
         
     except Exception as e:
-        print(f"❌ Error in direct text parsing: {e}")
+        print(f"Error in direct text parsing: {e}")
         return [
             {
                 'number': 1,
@@ -610,7 +586,6 @@ def upload_exam():
                     title=title,
                     description=description,
                     subject=subject,
-                    file_path="",  # No file for manual creation
                     file_type="manual",
                     original_filename="",
                     instructor_id=current_user.id,
@@ -673,20 +648,9 @@ def upload_exam():
                     flash('File type not allowed. Please upload PDF, image, or document files.', 'error')
                     return render_template('instructor/upload_exam.html')
                 
-                # Secure the filename
+                # Secure the filename and read bytes (store in DB, not filesystem)
                 filename = secure_filename(file.filename)
-                
-                # Create unique filename
-                timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                unique_filename = f"exam_{timestamp}_{filename}"
-                
-                # Create exam uploads directory
-                exam_uploads_dir = os.path.join(UPLOAD_FOLDER, 'exams')
-                os.makedirs(exam_uploads_dir, exist_ok=True)
-                
-                # Save file to upload folder
-                file_path = os.path.join(exam_uploads_dir, unique_filename)
-                file.save(file_path)
+                file_bytes = file.read()
                 
                 # Determine file type
                 file_extension = filename.rsplit('.', 1)[1].lower()
@@ -703,7 +667,8 @@ def upload_exam():
                     description=description,
                     subject=subject,
                     instructor_id=current_user.id,
-                    file_path=file_path,
+                    file_data=file_bytes,
+                    file_mime=file.mimetype or 'application/octet-stream',
                     file_type=file_type,
                     original_filename=filename,
                     uploaded_at=datetime.utcnow()
@@ -714,8 +679,8 @@ def upload_exam():
                 
                 # Automatically process the exam to extract questions
                 try:
-                    # Extract text from the uploaded exam file
-                    exam_text = extract_text_from_file(file_path, file_type)
+                    # Extract text from the uploaded exam file (prefer bytes)
+                    exam_text = extract_text_from_any(file_bytes, file_type)
                     
                     if not exam_text or exam_text.startswith("Error extracting text"):
                         # Commit the exam record even if processing fails
@@ -871,12 +836,7 @@ def delete_exam(exam_id):
                 'error': f'Cannot delete exam. There are {len(submissions)} student submission(s) for this exam. Please delete all submissions first.'
             }), 400
         
-        # Delete the exam file from storage
-        if exam.file_path and os.path.exists(exam.file_path):
-            try:
-                os.remove(exam.file_path)
-            except Exception as e:
-                print(f"Warning: Could not delete exam file {exam.file_path}: {e}")
+        # Files are stored in DB; skip filesystem deletions (legacy kept intentionally)
         
         # Delete from database
         db.session.delete(exam)
@@ -907,12 +867,7 @@ def delete_submission(submission_id):
         if not exam or exam.instructor_id != current_user.id:
             return jsonify({'success': False, 'error': 'Access denied'}), 403
         
-        # Delete submission files from storage
-        if submission.submission_file_path and os.path.exists(submission.submission_file_path):
-            try:
-                os.remove(submission.submission_file_path)
-            except Exception as e:
-                print(f"Warning: Could not delete submission file {submission.submission_file_path}: {e}")
+        # Files are stored in DB; skip filesystem deletions (legacy kept intentionally)
         
         # Delete question answers
         question_answers = QuestionAnswer.query.filter_by(student_submission_id=submission_id).all()
@@ -970,15 +925,18 @@ def download_exam(exam_id):
         flash('Access denied. You can only download your own exams.', 'error')
         return redirect(url_for('instructor.exams'))
     
-    # Check if file exists
-    if not os.path.exists(uploaded_exam.file_path):
-        flash('Exam file not found.', 'error')
-        return redirect(url_for('instructor.view_exam', exam_id=exam_id))
-    
     try:
-        return send_file(uploaded_exam.file_path, 
-                        as_attachment=True, 
-                        download_name=uploaded_exam.original_filename)
+        # Serve from database BLOB
+        if uploaded_exam.file_data:
+            return send_file(
+                BytesIO(uploaded_exam.file_data),
+                as_attachment=True,
+                download_name=uploaded_exam.original_filename,
+                mimetype=uploaded_exam.file_mime or 'application/octet-stream'
+            )
+        else:
+            flash('Exam file not found.', 'error')
+            return redirect(url_for('instructor.view_exam', exam_id=exam_id))
     except Exception as e:
         flash(f'Error downloading exam: {str(e)}', 'error')
         return redirect(url_for('instructor.view_exam', exam_id=exam_id))
@@ -1003,14 +961,17 @@ def process_exam(exam_id):
         
         print(f"🔄 Processing exam: {uploaded_exam.title}")
         
-        # Extract text from the uploaded exam file
-        exam_text = extract_text_from_file(uploaded_exam.file_path, uploaded_exam.file_type)
+        # Extract text from the uploaded exam file (database BLOB)
+        exam_text = extract_text_from_any(
+            uploaded_exam.file_data,
+            uploaded_exam.file_type
+        )
         
         if not exam_text or exam_text.startswith("Error extracting text"):
             # If text extraction failed, use a fallback
             exam_text = "Exam content could not be extracted. Please manually review the uploaded file."
         
-        print(f"📄 Extracted text length: {len(exam_text)} characters")
+        print(f" Extracted text length: {len(exam_text)} characters")
         
         # Initialize the DeepSeek AI grader for question extraction
         grader = ExamGrader(DEEPSEEK_API_KEY)
@@ -1018,7 +979,7 @@ def process_exam(exam_id):
         # Use AI to extract questions from the exam content
         questions = extract_questions_with_ai(exam_text, grader)
         
-        print(f"✅ Extracted {len(questions)} questions")
+        print(f"Extracted {len(questions)} questions")
         for i, q in enumerate(questions, 1):
             print(f"  Q{i}: {q.get('text', '')[:100]}... ({q.get('max_points', 0)} points)")
         
@@ -1049,7 +1010,7 @@ def process_exam(exam_id):
         })
         
     except Exception as e:
-        print(f"❌ Error processing exam: {e}")
+        print(f"Error processing exam: {e}")
         uploaded_exam.processing_status = 'failed'
         db.session.commit()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1094,15 +1055,18 @@ def download_submission(submission_id):
         flash('Access denied. You can only download submissions for your own exams.', 'error')
         return redirect(url_for('instructor.exams'))
     
-    # Check if file exists
-    if not os.path.exists(submission.submission_file_path):
-        flash('Submission file not found.', 'error')
-        return redirect(url_for('instructor.view_submission', submission_id=submission_id))
-    
     try:
-        return send_file(submission.submission_file_path, 
-                        as_attachment=True, 
-                        download_name=submission.original_filename)
+        if submission.submission_file_data:
+            return send_file(
+                BytesIO(submission.submission_file_data),
+                as_attachment=True,
+                download_name=submission.original_filename,
+                mimetype=submission.file_mime or 'application/octet-stream'
+            )
+        # Removed filesystem fallback - only database BLOB storage is supported
+        else:
+            flash('Submission file not found.', 'error')
+            return redirect(url_for('instructor.view_submission', submission_id=submission_id))
     except Exception as e:
         flash(f'Error downloading submission: {str(e)}', 'error')
         return redirect(url_for('instructor.view_submission', submission_id=submission_id))
@@ -1199,36 +1163,35 @@ def grade_submission(submission_id):
             if test_result.get('status') == 'success':
                 grader_available = True
                 model_type = "deepseek_api"
-                print("✅ DeepSeek AI grading system initialized successfully")
+                print("DeepSeek AI grading system initialized successfully")
             else:
                 grader_available = False
                 model_type = "smart_fallback"
-                print("⚠️ DeepSeek API not available, using fallback grading")
+                print("DeepSeek API not available, using fallback grading")
         except Exception as e:
-            print(f"⚠️ Failed to initialize DeepSeek grading: {e}")
+            print(f"Failed to initialize DeepSeek grading: {e}")
             grader_available = False
             model_type = "smart_fallback"
         
         # Extract text from the submission file for grading
         submission_text = ""
         try:
-            if submission.submission_file_path and os.path.exists(submission.submission_file_path):
-                # Extract text from the submission file using the same helper function
-                submission_text = extract_text_from_file(submission.submission_file_path, submission.file_type)
-                
-                if not submission_text or submission_text.startswith("Error extracting text"):
-                    submission_text = "Student answer content could not be extracted from the submission file."
-                else:
-                    print(f"✅ Extracted {len(submission_text)} characters from submission file")
+            # Extract text from database BLOB
+            submission_text = extract_text_from_any(
+                submission.submission_file_data,
+                submission.file_type
+            )
+            if not submission_text or submission_text.startswith("Error extracting text"):
+                submission_text = "Student answer content could not be extracted from the submission file."
             else:
-                submission_text = "Submission file not found."
+                print(f"Extracted {len(submission_text)} characters from submission file")
         except Exception as e:
             print(f"Error extracting text from submission file: {e}")
             submission_text = "Student answer content could not be extracted."
         
         # Process each question with timeout protection
         for i, qa in enumerate(question_answers):
-            print(f"📝 Grading question {i+1}/{len(question_answers)}: {qa.question_number}")
+            print(f"Grading question {i+1}/{len(question_answers)}: {qa.question_number}")
             
             # Set a default max_score if it's 0
             if qa.max_score == 0:
@@ -1240,13 +1203,13 @@ def grade_submission(submission_id):
             # If no individual answer text, try to extract from submission file
             if not qa.answer_text or qa.answer_text == "No answer provided":
                 question_answer = extract_answer_for_question(submission_text, qa.question_number, qa.question_text)
-                print(f"📝 Question {qa.question_number}: Using extracted answer (length: {len(question_answer)})")
+                print(f"Question {qa.question_number}: Using extracted answer (length: {len(question_answer)})")
                 
                 # Save the extracted answer for future reference
                 qa.answer_text = question_answer
                 db.session.commit()
             else:
-                print(f"📝 Question {qa.question_number}: Using saved answer (length: {len(question_answer)})")
+                print(f"Question {qa.question_number}: Using saved answer (length: {len(question_answer)})")
             
             try:
                 # Use DeepSeek AI grading if available, otherwise fallback
@@ -1283,7 +1246,7 @@ def grade_submission(submission_id):
                     grading_thread.join(timeout=20)
                     
                     if grading_thread.is_alive():
-                        print(f"⚠️ Grading timeout for question {qa.question_number}, using content-based fallback")
+                        print(f"Grading timeout for question {qa.question_number}, using content-based fallback")
                         score, feedback = grade_with_fallback(qa.question_text, question_answer, qa.max_score)
                         qa.confidence_score = 0.6  # Higher confidence for improved fallback
                         qa.score = score
@@ -1309,7 +1272,7 @@ def grade_submission(submission_id):
                             qa.confidence_score = 0.5  # Lower confidence for unknown method
                     else:
                         # AI grading failed, use fallback
-                        print(f"⚠️ AI grading failed for question {qa.question_number}, using content-based fallback")
+                        print(f"AI grading failed for question {qa.question_number}, using content-based fallback")
                         score, feedback = grade_with_fallback(qa.question_text, question_answer, qa.max_score)
                         qa.confidence_score = 0.5
                         
@@ -1323,11 +1286,11 @@ def grade_submission(submission_id):
                 qa.answer_text = question_answer  # Store the specific answer for this question
                 qa.graded_at = datetime.utcnow()
                 
-                print(f"✅ Question {qa.question_number} graded: {score}/{qa.max_score} points")
+                print(f"Question {qa.question_number} graded: {score}/{qa.max_score} points")
                 
             except Exception as e:
                 # Fallback to content-based grading if AI grading fails
-                print(f"❌ AI grading failed for question {qa.question_number}: {e}")
+                print(f"AI grading failed for question {qa.question_number}: {e}")
                 score, feedback = grade_with_fallback(qa.question_text, question_answer, qa.max_score)
                 qa.score = score
                 qa.feedback = feedback  # Use clean feedback without error prefix
@@ -1356,7 +1319,7 @@ def grade_submission(submission_id):
         })
         
     except Exception as e:
-        print(f"❌ Grading failed: {e}")
+        print(f"Grading failed: {e}")
         submission.grading_status = 'failed'
         db.session.commit()
         return jsonify({'success': False, 'error': str(e)}), 500

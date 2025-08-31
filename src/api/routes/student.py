@@ -4,17 +4,23 @@ Handles student-specific functionality for viewing available exams and submittin
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
+from io import BytesIO
 from flask_login import login_required, current_user
 from datetime import datetime
-import os
+# Removed os import - no longer needed for filesystem operations
 import json
 from werkzeug.utils import secure_filename
 
 from src.core.models import UploadedExam, StudentSubmission, QuestionAnswer, db
-from src.core.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from src.core.config import ALLOWED_EXTENSIONS
 
 # Create Blueprint
 student_bp = Blueprint('student', __name__)
+
+
+def is_student_like():
+    return current_user.role in ['student', 'moderator']
+
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
@@ -96,7 +102,7 @@ def extract_relevant_content(text, keywords):
 @login_required
 def dashboard():
     """Student dashboard - shows available exams and submission history"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
@@ -104,10 +110,10 @@ def dashboard():
         # Get all available exams (processed exams)
         available_exams = UploadedExam.query.filter_by(is_processed=True).order_by(UploadedExam.uploaded_at.desc()).all()
         
-        # Get student's submissions
-        # Since student_id now contains the actual student ID number, we'll show all submissions for now
-        # In production, you'd want to link submissions to user accounts properly
-        student_submissions = StudentSubmission.query.order_by(StudentSubmission.submitted_at.desc()).all()
+        # Get student's submissions (only for the current user)
+        student_submissions = StudentSubmission.query.filter_by(
+            student_id=str(current_user.id)
+        ).order_by(StudentSubmission.submitted_at.desc()).all()
         
         # Statistics
         total_submissions = len(student_submissions)
@@ -140,7 +146,7 @@ def dashboard():
 @login_required
 def exams():
     """List all available exams"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
@@ -156,7 +162,7 @@ def exams():
 @login_required
 def view_exam(exam_id):
     """View details of an available exam"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
@@ -186,7 +192,7 @@ def view_exam(exam_id):
 @login_required
 def submit_exam(exam_id):
     """Submit answers for an exam"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
@@ -241,17 +247,14 @@ def submit_exam(exam_id):
             main_submission_file = None
             main_file_type = "text"
             main_filename = "text_answers.txt"
+            main_file_bytes = None
             
             # Check if there's a main submission file
             main_file_obj = request.files.get('main_submission_file')
             if main_file_obj and main_file_obj.filename:
                 if allowed_file(main_file_obj.filename):
                     filename = secure_filename(main_file_obj.filename)
-                    unique_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_student_{current_user.id}_main_{filename}"
-                    upload_dir = os.path.join(UPLOAD_FOLDER, 'student_submissions')
-                    os.makedirs(upload_dir, exist_ok=True)
-                    main_submission_file = os.path.join(upload_dir, unique_filename)
-                    main_file_obj.save(main_submission_file)
+                    main_file_bytes = main_file_obj.read()
                     main_file_type = filename.rsplit('.', 1)[1].lower()
                     main_filename = filename
             
@@ -260,7 +263,8 @@ def submit_exam(exam_id):
                 uploaded_exam_id=exam_id,
                 student_name=current_user.username,
                 student_id=str(current_user.id),
-                submission_file_path=main_submission_file if main_submission_file else "",
+                submission_file_data=main_file_bytes,
+                file_mime=(main_file_obj.mimetype if main_file_obj else None) or 'application/octet-stream',
                 file_type=main_file_type,
                 original_filename=main_filename,
                 max_score=total_points
@@ -276,15 +280,11 @@ def submit_exam(exam_id):
                 file_obj = request.files.get(f'file_{question_id}')
                 
                 # Handle file upload if present
-                file_path = ""
+                file_bytes = None
                 if file_obj and file_obj.filename:
                     if allowed_file(file_obj.filename):
                         filename = secure_filename(file_obj.filename)
-                        unique_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_student_{current_user.id}_q{question_id}_{filename}"
-                        upload_dir = os.path.join(UPLOAD_FOLDER, 'student_submissions')
-                        os.makedirs(upload_dir, exist_ok=True)
-                        file_path = os.path.join(upload_dir, unique_filename)
-                        file_obj.save(file_path)
+                        file_bytes = file_obj.read()
                 
                 # Create question answer record
                 question_answer = QuestionAnswer(
@@ -292,7 +292,7 @@ def submit_exam(exam_id):
                     question_number=question_id,
                     question_text=question['question_text'],
                     answer_text=answer_text,
-                    answer_image_path=file_path if file_path else None,
+                    answer_image_data=file_bytes,
                     max_score=question['points'],
                     score=0
                 )
@@ -300,16 +300,15 @@ def submit_exam(exam_id):
                 answers_data.append({
                     'question_number': question_id,
                     'question_text': question['question_text'],
-                    'answer': answer_text,
-                    'file_path': file_path
+                    'answer': answer_text
                 })
             
             # If main submission file was uploaded, extract answers from it
-            if main_submission_file:
+            if main_file_bytes:
                 try:
-                    # Extract text from the uploaded file
-                    from src.utils.helpers import extract_text_from_file
-                    submission_text = extract_text_from_file(main_submission_file, main_file_type)
+                    # Extract text from the uploaded file (bytes)
+                    from src.utils.helpers import extract_text_from_any
+                    submission_text = extract_text_from_any(main_file_bytes, main_file_type)
                     # print("submission text", submission_text)
                     
                     # Parse answers from the submission text and match to questions
@@ -332,15 +331,13 @@ def submit_exam(exam_id):
                     # Continue with manual answers if parsing fails
                     success_message = "Exam submitted successfully! (Note: Could not parse answers from uploaded file, using manual answers instead)"
             
-            # If no main submission file, create a text file with all answers
-            if not main_submission_file:
-                import tempfile
+            # If no main submission file, store synthesized text answers as a blob
+            if not main_file_bytes:
                 answer_text = "\n\n".join([f"Question {qa['question_number']}:\n{qa['answer']}" for qa in answers_data])
-                temp_file_path = os.path.join(UPLOAD_FOLDER, 'student_submissions', f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_student_{current_user.id}_answers.txt")
-                os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
-                with open(temp_file_path, 'w', encoding='utf-8') as f:
-                    f.write(answer_text)
-                submission.submission_file_path = temp_file_path
+                synthesized_bytes = answer_text.encode('utf-8')
+                submission.submission_file_data = synthesized_bytes
+                submission.file_mime = 'text/plain'
+                submission.original_filename = 'answers.txt'
             
             db.session.commit()
             
@@ -366,7 +363,7 @@ def submit_exam(exam_id):
 @login_required
 def view_submission(submission_id):
     """View a specific submission and its results"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
@@ -374,9 +371,9 @@ def view_submission(submission_id):
         submission = StudentSubmission.query.get_or_404(submission_id)
         
         # Check if this submission belongs to the current student
-        # Since student_id now contains the actual student ID number, we'll use a different approach
-        # For now, we'll allow students to view submissions - in production you'd want proper authentication
-        pass
+        if submission.student_id != str(current_user.id):
+            flash('Access denied. You can only view your own submissions.', 'error')
+            return redirect(url_for('student.dashboard'))
         
         # Get question answers if graded
         question_answers = []
@@ -398,7 +395,7 @@ def view_submission(submission_id):
 @login_required
 def download_submission(submission_id):
     """Download the submitted answer file"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
@@ -406,14 +403,17 @@ def download_submission(submission_id):
         submission = StudentSubmission.query.get_or_404(submission_id)
         
         # Check if this submission belongs to the current student
-        # Since student_id now contains the actual student ID number, we'll use a different approach
-        # For now, we'll allow students to view submissions - in production you'd want proper authentication
-        pass
+        if submission.student_id != str(current_user.id):
+            flash('Access denied. You can only view your own submissions.', 'error')
+            return redirect(url_for('student.dashboard'))
         
-        if os.path.exists(submission.submission_file_path):
-            return send_file(submission.submission_file_path, 
-                           as_attachment=True, 
-                           download_name=submission.original_filename)
+        if submission.submission_file_data:
+            return send_file(
+                BytesIO(submission.submission_file_data),
+                as_attachment=True,
+                download_name=submission.original_filename,
+                mimetype=submission.file_mime or 'application/octet-stream'
+            )
         else:
             flash('File not found.', 'error')
             return redirect(url_for('student.view_submission', submission_id=submission_id))
@@ -427,14 +427,14 @@ def download_submission(submission_id):
 @login_required
 def results():
     """View all graded results"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
     try:
-        # For now, show all graded submissions since we don't have proper student-submission linking
-        # In production, you'd want to link submissions to user accounts properly
+        # Show only graded submissions for the current student
         graded_submissions = StudentSubmission.query.filter_by(
+            student_id=str(current_user.id),
             is_graded=True
         ).order_by(StudentSubmission.submitted_at.desc()).all()
         
@@ -448,14 +448,15 @@ def results():
 @login_required
 def submissions():
     """View all submissions (graded and ungraded)"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     
     try:
-        # For now, show all submissions since we don't have proper student-submission linking
-        # In production, you'd want to link submissions to user accounts properly
-        all_submissions = StudentSubmission.query.order_by(StudentSubmission.submitted_at.desc()).all()
+        # Show only submissions for the current student
+        all_submissions = StudentSubmission.query.filter_by(
+            student_id=str(current_user.id)
+        ).order_by(StudentSubmission.submitted_at.desc()).all()
         
     except Exception as e:
         print(f"Database error: {e}")
@@ -467,7 +468,7 @@ def submissions():
 @login_required
 def take_exam(exam_id):
     """Take an exam - show questions and allow student to answer"""
-    if current_user.role != 'student':
+    if not is_student_like():
         flash('Access denied. Students only.', 'error')
         return redirect(url_for('index'))
     

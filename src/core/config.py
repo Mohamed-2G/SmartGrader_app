@@ -4,7 +4,8 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev_key')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///site.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
+    
+    # Email Configuration
     MAIL_SERVER = 'smtp.gmail.com'
     MAIL_PORT = 587
     MAIL_USE_TLS = True
@@ -16,12 +17,15 @@ class Config:
     SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
     SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+    
+    # API Keys
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
     DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
+    
+    # File upload settings
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff'}
 
 # Export variables at module level for direct import
-UPLOAD_FOLDER = Config.UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = Config.ALLOWED_EXTENSIONS
 OPENAI_API_KEY = Config.OPENAI_API_KEY
 DEEPSEEK_API_KEY = Config.DEEPSEEK_API_KEY

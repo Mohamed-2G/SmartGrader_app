@@ -98,8 +98,21 @@
         .logout-button .btn:hover {
             background: rgba(255, 255, 255, 0.2);
             border-color: rgba(255, 255, 255, 0.6);
-            color: white;
-            transform: translateY(-1px);
+        }
+        
+        /* Ensure Messages link is always visible */
+        #messages-link {
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        #messages-link .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+        }
+        
+        #messages-link .nav-link:hover {
+            color: white !important;
+            background-color: rgba(255,255,255,0.1) !important;
         }
         
         /* Message notification badge styles */
@@ -206,9 +219,9 @@
                         </li>
                         {% endif %}
                         
-                        <!-- Common Features for All Users -->
+                        <!-- Messages - Available for All Users -->
                         <li class="nav-item">
-                            <a class="nav-link position-relative" href="{{ url_for('messages') }}" id="messages-link">
+                            <a class="nav-link position-relative" href="{{ url_for('messages') }}" id="messages-link" style="background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
                                 <i class="fas fa-envelope me-2"></i>
                                 {{ get_text('messages') }}
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="message-notification-badge" style="display: none;">
@@ -289,13 +302,8 @@
             });
         }
 
-        // Message notification system (initialize only if badge exists)
+        // Message notification system
         function updateMessageNotification() {
-            window._sg = window._sg || {};
-            if (window._sg.isUpdatingMessageNotification) {
-                return; // prevent concurrent requests
-            }
-            window._sg.isUpdatingMessageNotification = true;
             fetch('/api/unread_messages_count')
                 .then(response => response.json())
                 .then(data => {
@@ -311,27 +319,15 @@
                 })
                 .catch(error => {
                     console.error('Error updating message notification:', error);
-                })
-                .finally(() => {
-                    window._sg.isUpdatingMessageNotification = false;
                 });
         }
 
         // Update notification on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const badge = document.getElementById('message-notification-badge');
-            if (!badge) {
-                return; // Not an authenticated layout (no sidebar/badge)
-            }
-            window._sg = window._sg || {};
-            if (!window._sg.messageNotificationInitialized) {
-                window._sg.messageNotificationInitialized = true;
-                updateMessageNotification();
-                // Update notification every 30 seconds (single interval)
-                if (!window._sg.messageNotificationIntervalId) {
-                    window._sg.messageNotificationIntervalId = setInterval(updateMessageNotification, 30000);
-                }
-            }
+            updateMessageNotification();
+            
+            // Update notification every 30 seconds
+            setInterval(updateMessageNotification, 30000);
         });
     </script>
     

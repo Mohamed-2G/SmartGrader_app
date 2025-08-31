@@ -1,112 +1,247 @@
-# SmartGrader - AI-Powered Exam Grading
+# SmartGrader - AI-Powered Exam Grading System
 
-SmartGrader is a web application that makes grading student exams easier and faster. It uses AI to automatically score submissions and provide meaningful feedback. The system works entirely with PDF files, giving both instructors and students a smooth workflow.
+A comprehensive Flask-based web application that automates exam grading using AI, with support for multiple user roles, file uploads, and intelligent question extraction.
 
-## What It Does
+## 🚀 Features
 
-- **Automatic Grading**: Each answer is graded by AI with detailed feedback.
-- **Handles PDFs**: Upload exam PDFs, and the system extracts questions and evaluates answers.
-- **Flexible Exam Setup**: You can create exams manually or let the system process them automatically.
-- **Instructor Dashboard**: Manage exams, track submissions, and review results all in one place.
-- **Student Dashboard**: See available exams, submit answers, and check scores.
+### Core Functionality
+- **AI-Powered Grading**: Uses DeepSeek API for intelligent exam grading with fallback mechanisms
+- **Database Storage**: All files (PDFs, images, documents) are stored directly in SQLite database as BLOBs
+- **Automatic Question Extraction**: AI extracts questions from uploaded exam files
+- **Multi-Role Support**: Instructor, Student, and Moderator interfaces
+- **Multi-Language Support**: English, French, Arabic, and Turkish
 
-## How to Get Started
+### User Roles
 
-### Requirements
+#### 👨‍🏫 Instructor
+- Upload exams (PDF, images, documents)
+- Automatic question extraction using AI
+- View and grade student submissions
+- Manage exam content and settings
+- Download student submissions
 
-- Python 3.8 or higher
-- DeepSeek API key
-- Internet access
+#### 👨‍🎓 Student
+- View available exams
+- Submit answers (text or file uploads)
+- View grading results and feedback
+- Access submission history
 
-### Installation
+#### 👨‍💼 Moderator
+- User management (create, edit, delete users)
+- System settings configuration
+- Access to all instructor and student features
+- Database administration
 
-1. Clone the repository:
+### Technical Features
+- **File Processing**: Supports PDF, images (PNG, JPG, GIF), and text documents
+- **AI Integration**: DeepSeek API for question extraction and grading
+- **Database**: SQLite with SQLAlchemy ORM
+- **Authentication**: Flask-Login with role-based access control
+- **Responsive UI**: Modern web interface with Bootstrap
+
+## 🛠️ Installation
+
+### Prerequisites
+- Python 3.8+
+- pip package manager
+
+### Setup
+1. **Clone the repository**
    ```bash
    git clone <repository-url>
    cd SmartGrader
    ```
 
-2. Run the setup script:
+2. **Install dependencies**
    ```bash
-   python setup.py
+   pip install -r requirements.txt
    ```
 
-3. Add your API key and email configuration in a `.env` file:
+3. **Set environment variables**
+   Create a `.env` file in the root directory:
+   ```env
+   SECRET_KEY=your_secret_key_here
+   DEEPSEEK_API_KEY=your_deepseek_api_key_here
+   GMAIL_USER=your_email@gmail.com
+   GMAIL_PASS=your_app_password
    ```
-   DEEPSEEK_API_KEY=your_deepseek_token_here
-   
-   # Email Configuration (for password reset functionality)
-   SMTP_EMAIL=your_email@gmail.com
-   SMTP_PASSWORD=your_app_password
-   SMTP_SERVER=smtp.gmail.com
-   SMTP_PORT=587
-   ```
-   
-   **Note:** For Gmail, you'll need to use an App Password instead of your regular password. To generate an App Password:
-   1. Go to your Google Account settings
-   2. Navigate to Security
-   3. Enable 2-Step Verification if not already enabled
-   4. Generate an App Password for "Mail"
-   5. Use this App Password in the SMTP_PASSWORD field
 
-4. Start the application:
+4. **Initialize the database**
    ```bash
-   python app.py
+   flask db init
+   flask db migrate -m "initial migration"
+   flask db upgrade
    ```
 
-5. Open your browser at `http://localhost:5000` and log in:
-   - **Instructor**: teacher / password
-   - **Student**: student / password
-   - **Admin**: admin / password
+5. **Run the application**
+   ```bash
+   flask run --debug
+   ```
 
-## How to Use
-
-### For Instructors
-
-1. Upload a PDF exam or create questions manually.
-2. Let the system extract questions or edit them if needed.
-3. Monitor student submissions and their status.
-4. Grade submissions automatically using AI and review feedback.
-5. Re-evaluate any submission if grading criteria change.
-
-### For Students
-
-1. Browse available exams from your dashboard.
-2. Submit answers either by typing them or uploading a PDF file.
-3. Check your scores and feedback once the exam is graded.
-
-## File Support
-
-- Only PDF files are supported for both exams and student submissions.
-- The system extracts text from PDFs while keeping formatting intact.
-
-## Running Tests
-
-To make sure everything is working:
-
-```bash
-python test_phi_grading.py
-```
-
-## Troubleshooting
-
-- If grading fails, check that your API key is correct and that your system has enough memory.
-- Ensure PDFs are properly formatted and not password-protected.
-- Reset the database (`site.db`) if you encounter database issues.
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 SmartGrader/
-├── app.py
-├── config.py
-├── models.py
-├── grader/exam_grader.py
-├── routes/instructor.py
-├── routes/student.py
-├── templates/
-├── static/
-├── models/
-├── uploads/
-└── requirements.txt
+├── app.py                          # Main Flask application
+├── src/
+│   ├── core/
+│   │   ├── config.py              # Configuration settings
+│   │   ├── extensions.py          # Flask extensions
+│   │   └── models.py              # Database models
+│   ├── api/
+│   │   └── routes/
+│   │       ├── instructor.py      # Instructor routes
+│   │       ├── student.py         # Student routes
+│   │       ├── moderator.py       # Moderator routes
+│   │       ├── ai_grading.py      # AI grading routes
+│   │       └── auth.py            # Authentication routes
+│   ├── services/
+│   │   └── grader/
+│   │       ├── exam_grader.py     # Exam grading service
+│   │       └── prompt_builder.py  # AI prompt construction
+│   └── utils/
+│       ├── helpers.py             # Utility functions
+│       └── translations.py        # Multi-language support
+├── templates/                      # HTML templates
+├── static/                        # CSS, JS, and static assets
+└── instance/                      # Database files
 ```
+
+## 🗄️ Database Models
+
+### Core Models
+- **User**: User accounts with role-based access
+- **UploadedExam**: Exam files and metadata
+- **StudentSubmission**: Student answer submissions
+- **QuestionAnswer**: Individual question responses and grades
+- **Message**: User-to-user messaging system
+- **SystemSettings**: Application configuration
+
+### Key Features
+- **BLOB Storage**: All files stored as binary data in database
+- **JSON Processing**: Exam questions stored as structured JSON
+- **Audit Trail**: Timestamps and user tracking for all operations
+
+## 🔧 Configuration
+
+### Environment Variables
+- `SECRET_KEY`: Flask secret key for sessions
+- `DEEPSEEK_API_KEY`: API key for DeepSeek AI services
+- `GMAIL_USER`: Gmail username for email functionality
+- `GMAIL_PASS`: Gmail app password
+
+### File Types Supported
+- **PDF**: Text extraction using PyMuPDF
+- **Images**: OCR using Tesseract
+- **Documents**: Direct text reading
+- **Manual**: Text-based question creation
+
+## 🚀 Usage
+
+### For Instructors
+1. **Login** with instructor credentials
+2. **Upload Exam** by selecting a file or creating questions manually
+3. **Process Exam** to extract questions using AI
+4. **View Submissions** from students
+5. **Grade Submissions** using AI grading system
+
+### For Students
+1. **Login** with student credentials
+2. **View Available Exams** from the dashboard
+3. **Take Exam** by answering questions or uploading files
+4. **View Results** and feedback after grading
+
+### For Moderators
+1. **Login** with moderator credentials
+2. **Manage Users** (create, edit, delete)
+3. **Configure System** settings
+4. **Access All Features** available to instructors and students
+
+## 🔒 Security Features
+
+- **Role-Based Access Control**: Users can only access features appropriate to their role
+- **Session Management**: Secure session handling with Flask-Login
+- **File Validation**: Secure filename handling and type validation
+- **Database Integrity**: SQLAlchemy with proper error handling
+
+## 🧪 Testing
+
+### Default Users
+The system creates default users on first run:
+- **Admin**: `admin` / `admin12` (moderator role)
+- **Instructor**: `teacher` / `teacher12` (instructor role)
+- **Student**: `student` / `student12` (student role)
+
+### Testing Features
+- Upload various file types
+- Test AI question extraction
+- Submit student answers
+- Test AI grading system
+- Verify role-based access
+
+## 🚨 Troubleshooting
+
+### Common Issues
+1. **Import Errors**: Ensure all dependencies are installed
+2. **Database Errors**: Run `flask db upgrade` to apply migrations
+3. **API Errors**: Verify DeepSeek API key is set correctly
+4. **File Upload Issues**: Check file size and type restrictions
+
+### Debug Mode
+Run with debug mode for detailed error information:
+```bash
+flask run --debug
+```
+
+## 📝 API Endpoints
+
+### Authentication
+- `POST /login` - User login
+- `POST /register` - User registration
+- `GET /logout` - User logout
+
+### Instructor Routes
+- `GET /instructor/dashboard` - Instructor dashboard
+- `POST /instructor/upload_exam` - Upload exam file
+- `POST /instructor/exam/<id>/process` - Process exam with AI
+- `GET /instructor/submission/<id>` - View student submission
+
+### Student Routes
+- `GET /student/dashboard` - Student dashboard
+- `GET /student/exam/<id>/take` - Take exam
+- `POST /student/exam/<id>/submit` - Submit exam answers
+
+### AI Grading
+- `POST /api/grade` - Grade single answer
+- `POST /api/grade_batch` - Grade multiple answers
+- `POST /api/test_grading` - Test grading system
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- **DeepSeek**: AI grading capabilities
+- **Flask**: Web framework
+- **SQLAlchemy**: Database ORM
+- **Bootstrap**: UI components
+
+## 📞 Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the troubleshooting section
+- Review the configuration documentation
+
+---
+
+**SmartGrader** - Making exam grading intelligent and efficient! 🎓✨

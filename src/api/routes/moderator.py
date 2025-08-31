@@ -1,202 +1,204 @@
+"""
+Moderator Routes
+Dashboard, Users view, and System Settings
+"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from src.core.models import User, Exam, Submission, SystemSettings
-from src.core.extensions import db, mail
-from flask_mail import Message
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from datetime import datetime, timedelta
-import json
+
+from src.core.extensions import db
+from src.core.models import User, UploadedExam, StudentSubmission, SystemSettings
+from sqlalchemy.exc import IntegrityError
+
 
 moderator_bp = Blueprint('moderator', __name__)
 
-serializer = URLSafeTimedSerializer('dev_key')  # Replace with app.config['SECRET_KEY'] in app factory
+
+def _require_moderator() -> bool:
+    return current_user.is_authenticated and current_user.role == 'moderator'
+
 
 @moderator_bp.route('/moderator/dashboard')
 @login_required
 def dashboard():
-    if current_user.role != 'moderator':
+    if not _require_moderator():
         flash('Access denied', 'error')
         return redirect(url_for('index'))
+
     total_users = User.query.count()
-    total_exams = Exam.query.count()
-    total_submissions = Submission.query.count()
-    recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
-    return render_template('moderator/dashboard.html', 
-                         total_users=total_users,
-                         total_exams=total_exams,
-                         total_submissions=total_submissions,
-                         recent_users=recent_users)
+    total_exams = UploadedExam.query.count()
+    total_submissions = StudentSubmission.query.count()
+    recent_users = User.query.order_by(User.created_at.desc()).all()
 
-@moderator_bp.route('/moderator/users')
+    return render_template(
+        'moderator/dashboard.html',
+        total_users=total_users,
+        total_exams=total_exams,
+        total_submissions=total_submissions,
+        recent_users=recent_users,
+    )
+
+
+@moderator_bp.route('/moderator/users', endpoint='moderator_users')
 @login_required
-def moderator_users():
-    if current_user.role != 'moderator':
+def users():
+    if not _require_moderator():
         flash('Access denied', 'error')
         return redirect(url_for('index'))
-    users = User.query.order_by(User.created_at.desc()).all()
-    now = datetime.utcnow()
-    return render_template('moderator/users.html', users=users, now=now)
 
-@moderator_bp.route('/moderator/send_reset/<int:user_id>', methods=['POST'])
-@login_required
-def send_password_reset(user_id):
-    if current_user.role != 'moderator':
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
-    user = User.query.get_or_404(user_id)
-    if user.role not in ['student', 'instructor']:
-        return jsonify({'success': False, 'error': 'Can only reset for students or instructors'}), 400
-    token = serializer.dumps(user.email, salt='password-reset-salt')
-    reset_url = url_for('reset_password', token=token, _external=True)
-    try:
-        msg = Message('SmartGrader Password Reset', recipients=[user.email])
-        msg.body = f"Hello {user.username},\n\nA password reset was requested for your SmartGrader account. Click the link below to reset your password (valid for 1 hour):\n\n{reset_url}\n\nIf you did not request this, please ignore this email."
-        mail.send(msg)
-        return jsonify({'success': True, 'message': f'Reset link sent to {user.email}.'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    all_users = User.query.order_by(User.created_at.desc()).all()
+    # Pass current time value to avoid callable issues in Jinja
+    return render_template('moderator/users.html', users=all_users, now_utc=datetime.utcnow())
 
-@moderator_bp.route('/moderator/user/<int:user_id>/suspend', methods=['POST'])
-@login_required
-def suspend_user(user_id):
-    if current_user.role != 'moderator':
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    user = User.query.get_or_404(user_id)
-    days = int(request.form.get('days', 0))
-    if days > 0:
-        user.suspended_until = datetime.utcnow() + timedelta(days=days)
-        user.is_active = False
-    else:
-        user.suspended_until = None
-        user.is_active = False
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'User {user.username} suspended.'})
 
-@moderator_bp.route('/moderator/user/<int:user_id>/unsuspend', methods=['POST'])
+@moderator_bp.route('/moderator/system', endpoint='moderator_system')
 @login_required
-def unsuspend_user(user_id):
-    if current_user.role != 'moderator':
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    user = User.query.get_or_404(user_id)
-    user.suspended_until = None
-    user.is_active = True
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'User {user.username} unsuspended.'})
-
-@moderator_bp.route('/moderator/user/<int:user_id>/delete', methods=['POST'])
-@login_required
-def delete_user(user_id):
-    if current_user.role != 'moderator':
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    user = User.query.get_or_404(user_id)
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'User {user.username} deleted.'})
-
-@moderator_bp.route('/moderator/user/<int:user_id>/edit', methods=['POST'])
-@login_required
-def edit_user(user_id):
-    if current_user.role != 'moderator':
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    user = User.query.get_or_404(user_id)
-    data = request.form
-    user.username = data.get('username', user.username)
-    user.email = data.get('email', user.email)
-    user.language = data.get('language', user.language)
-    if user.role != 'moderator':
-        user.role = data.get('role', user.role)
-    db.session.commit()
-    return jsonify({'success': True, 'message': f'User {user.username} updated.'})
-
-@moderator_bp.route('/moderator/system')
-@login_required
-def moderator_system():
-    if current_user.role != 'moderator':
+def system():
+    if not _require_moderator():
         flash('Access denied', 'error')
         return redirect(url_for('index'))
-    
-    # Load current settings from database
-    settings = {}
-    db_settings = SystemSettings.query.all()
-    for setting in db_settings:
-        settings[setting.setting_key] = setting.setting_value
-    
-    # Default values if settings don't exist
-    default_settings = {
-        'deepseek_model': 'deepseek-chat',
-        'temperature': '0.3',
-        'max_tokens': '1000',
-        'grading_timeout': '30',
-        'session_timeout': '60',
-        'max_file_size': '10',
-        'backup_frequency': 'weekly',
-        'log_level': 'info',
-        'require_strong_passwords': 'true',
-        'enable_two_factor': 'true',
-        'log_login_attempts': 'true',
-        'enable_rate_limiting': 'true'
-    }
-    
-    # Use database values or defaults
-    for key, default_value in default_settings.items():
-        if key not in settings:
-            settings[key] = default_value
-    
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    return render_template('moderator/system.html', last_updated=now, settings=settings)
+
+    settings_rows = SystemSettings.query.all()
+    settings = {row.setting_key: row.setting_value for row in settings_rows}
+    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+
+    return render_template(
+        'moderator/system.html',
+        settings=settings,
+        last_updated=now,
+    )
+
 
 @moderator_bp.route('/moderator/system/save_settings', methods=['POST'])
 @login_required
-def save_system_settings():
-    if current_user.role != 'moderator':
+def save_settings():
+    if not _require_moderator():
         return jsonify({'success': False, 'error': 'Access denied'}), 403
-    
+    data = request.get_json(silent=True) or {}
+    settings = data.get('settings', {})
     try:
-        data = request.get_json()
-        settings = data.get('settings', {})
-        
         for key, value in settings.items():
-            # Convert boolean values to string for storage
-            if isinstance(value, bool):
-                value = str(value).lower()
+            key = str(key)
+            value = str(value) if not isinstance(value, str) else value
+            existing = SystemSettings.query.filter_by(setting_key=key).first()
+            if existing:
+                existing.setting_value = value
+                existing.updated_at = datetime.utcnow()
+                existing.updated_by = current_user.id
             else:
-                value = str(value)
-            
-            # Check if setting exists
-            existing_setting = SystemSettings.query.filter_by(setting_key=key).first()
-            
-            if existing_setting:
-                # Update existing setting
-                existing_setting.setting_value = value
-                existing_setting.updated_at = datetime.utcnow()
-                existing_setting.updated_by = current_user.id
-            else:
-                # Create new setting
-                new_setting = SystemSettings(
+                db.session.add(SystemSettings(
                     setting_key=key,
                     setting_value=value,
                     setting_type='string',
                     updated_by=current_user.id
-                )
-                db.session.add(new_setting)
-        
+                ))
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Settings saved successfully'})
-        
+        return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 @moderator_bp.route('/moderator/system/confirm_settings', methods=['POST'])
 @login_required
-def confirm_system_settings():
-    if current_user.role != 'moderator':
+def confirm_settings():
+    if not _require_moderator():
         return jsonify({'success': False, 'error': 'Access denied'}), 403
-    
+    # In this simplified app, confirmation is a no-op
+    return jsonify({'success': True})
+
+
+# ---- User management endpoints ----
+
+@moderator_bp.route('/moderator/user/<int:user_id>/edit', methods=['POST'])
+@login_required
+def edit_user(user_id: int):
+    if not _require_moderator():
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
     try:
-        # Here you could add additional logic to apply settings
-        # For example, restart services, clear caches, etc.
-        
-        return jsonify({'success': True, 'message': 'Settings confirmed and applied successfully'})
-        
+        user = User.query.get_or_404(user_id)
+        form = request.form
+        username = form.get('username', user.username).strip()
+        email = form.get('email', user.email).strip()
+        language = form.get('language', user.language or '').strip()
+        role = form.get('role', user.role).strip()
+
+        # Basic uniqueness checks
+        if username != user.username and User.query.filter_by(username=username).first():
+            return jsonify({'success': False, 'error': 'Username already exists'}), 400
+        if email != user.email and User.query.filter_by(email=email).first():
+            return jsonify({'success': False, 'error': 'Email already exists'}), 400
+
+        user.username = username or user.username
+        user.email = email or user.email
+        user.language = language or user.language
+        if role in ['student', 'instructor', 'moderator']:
+            user.role = role
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Constraint error'}), 400
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@moderator_bp.route('/moderator/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id: int):
+    if not _require_moderator():
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+    try:
+        if user_id == current_user.id:
+            return jsonify({'success': False, 'error': 'Cannot delete your own account'}), 400
+        user = User.query.get_or_404(user_id)
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@moderator_bp.route('/moderator/user/<int:user_id>/suspend', methods=['POST'])
+@login_required
+def suspend_user(user_id: int):
+    if not _require_moderator():
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+    try:
+        user = User.query.get_or_404(user_id)
+        days_raw = request.form.get('days', '0')
+        try:
+            days = int(days_raw)
+        except ValueError:
+            days = 0
+        if days > 0:
+            user.suspended_until = datetime.utcnow() + timedelta(days=days)
+            user.is_active = False
+        else:
+            user.suspended_until = None
+            user.is_active = False
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@moderator_bp.route('/moderator/user/<int:user_id>/unsuspend', methods=['POST'])
+@login_required
+def unsuspend_user(user_id: int):
+    if not _require_moderator():
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+    try:
+        user = User.query.get_or_404(user_id)
+        user.suspended_until = None
+        user.is_active = True
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+

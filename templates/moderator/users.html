@@ -64,26 +64,26 @@
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <!-- Edit User Button -->
-                                <button class="btn btn-outline-primary" title="Edit User" onclick="openEditModal({{ user.id }}, '{{ user.username|escape }}', '{{ user.email|escape }}', '{{ user.language|escape }}', '{{ user.role|escape }}')">
+                                <button class="btn btn-outline-primary" title="Edit User" onclick='openEditModal({{ user.id|tojson }}, {{ user.username|tojson }}, {{ user.email|tojson }}, {{ user.language|tojson }}, {{ user.role|tojson }})'>
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <!-- Suspend/Unsuspend Button -->
-                                {% if user.is_active and (not user.suspended_until or user.suspended_until < now()) %}
-                                <button class="btn btn-outline-warning" title="Suspend User" onclick="openSuspendModal({{ user.id }}, '{{ user.username|escape }}')">
+                                {% if user.is_active and (not user.suspended_until or user.suspended_until < now_utc) %}
+                                <button class="btn btn-outline-warning" title="Suspend User" onclick='openSuspendModal({{ user.id|tojson }}, {{ user.username|tojson }})'>
                                     <i class="fas fa-ban"></i>
                                 </button>
-                                {% elif user.suspended_until and user.suspended_until > now() %}
-                                <button class="btn btn-outline-success" title="UnsuspendUser({{ user.id }})">unsuspendUser({{ user.id }})</button>
+                                {% elif user.suspended_until and user.suspended_until > now_utc %}
+                                <button class="btn btn-outline-success" title="Unsuspend User" onclick="unsuspendUser({{ user.id }})">
                                     <i class="fas fa-check"></i>
                                 </button>
                                 {% endif %}
                                 <!-- Delete User Button -->
-                                <button class="btn btn-outline-danger" title="Delete User" onclick="deleteUser({{ user.id }}, '{{ user.username|escape }}')">
+                                <button class="btn btn-outline-danger" title="Delete User" onclick='deleteUser({{ user.id|tojson }}, {{ user.username|tojson }})'>
                                     <i class="fas fa-trash"></i>
                                 </button>
                                 <!-- Password Reset Button -->
                                 {% if user.role == 'instructor' or user.role == 'student' %}
-                                <button class="btn btn-outline-info" title="Send Password Reset Link" onclick="sendResetLink('{{ user.email }}')">
+                                <button class="btn btn-outline-info" title="Send Password Reset Link" onclick='sendResetLink({{ user.email|tojson }})'>
                                     <i class="fas fa-key"></i> Reset Password
                                 </button>
                                 {% endif %}

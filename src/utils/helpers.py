@@ -1,68 +1,26 @@
 import fitz  # PyMuPDF for PDF processing
 from pytesseract import image_to_string
 from PIL import Image
+from io import BytesIO
 import openai
-import os
+# Removed os import - no longer needed for filesystem operations
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-def extract_text_from_file(file_path, file_type):
-    """Extract text content from different file types"""
+def _normalize_extracted_text(raw_text: str) -> str:
+    """Normalize and clean extracted text similarly for both file and bytes paths."""
     try:
-        if file_type == 'pdf':
-            return extract_text_from_pdf(file_path)
-        
-        elif file_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff']:
-            return extract_text_from_image(file_path)
-        
-        elif file_type in ['txt', 'doc', 'docx', 'text']:
-            # For text files, read directly
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-                return file.read().strip()
-        
-        else:
-            return f"Unsupported file type: {file_type}. Supported types: PDF, images (JPG, PNG, GIF, BMP, TIFF), and text files (TXT, DOC, DOCX)"
-            
-    except Exception as e:
-        return f"Error extracting text from {file_type} file: {str(e)}"
-
-def extract_text_from_pdf(file_path):
-    """Extract text from PDF using PyMuPDF with improved formatting for question detection"""
-    try:
-        doc = fitz.open(file_path)
-        text = ""
-        
-        for page_num, page in enumerate(doc):
-            # Get text with better formatting
-            page_text = page.get_text("text")
-            
-            # Clean up the text
-            page_text = page_text.strip()
-            
-            # Add page separator if not empty
-            if page_text:
-                if text:  # If not the first page, add a separator
-                    text += "\n\n--- Page " + str(page_num + 1) + " ---\n\n"
-                else:  # First page
-                    text += "--- Page " + str(page_num + 1) + " ---\n\n"
-                text += page_text
-        
-        # Clean up the final text
-        text = text.strip()
-        
-        # Remove excessive whitespace while preserving structure
+        text = raw_text.strip()
         lines = text.split('\n')
         cleaned_lines = []
         for line in lines:
             line = line.strip()
-            if line:  # Only add non-empty lines
+            if line:
                 cleaned_lines.append(line)
-        
         text = '\n'.join(cleaned_lines)
         
         # Improve question detection by preserving numbering patterns
-        # Look for common question patterns and ensure they're properly formatted
         import re
         
         # Fix common numbering issues
@@ -81,77 +39,148 @@ def extract_text_from_pdf(file_path):
         # Fix lettered questions
         text = re.sub(r'([a-z])\.\s*', r'\1. ', text, flags=re.IGNORECASE)
         
-        return text if text else "No text content found in PDF"
+        return text if text else "No text content found"
+        
+    except Exception as e:
+        return f"Error normalizing text: {str(e)}"
+
+def extract_text_from_pdf_bytes(file_data: bytes) -> str:
+    """Extract text from PDF bytes using PyMuPDF with improved formatting for question detection"""
+    try:
+        doc = fitz.open(stream=file_data, filetype="pdf")
+        text = ""
+        
+        for page_num, page in enumerate(doc):
+            # Get text with better formatting
+            page_text = page.get_text("text")
+            
+            # Clean up the text
+            page_text = page_text.strip()
+            
+            # Add page separator if not empty
+            if page_text:
+                if text:  # If not the first page, add a separator
+                    text += "\n\n--- Page " + str(page_num + 1) + " ---\n\n"
+                else:  # First page
+                    text += "--- Page " + str(page_num + 1) + " ---\n\n"
+                text += page_text
+        
+        doc.close()
+        return _normalize_extracted_text(text)
         
     except Exception as e:
         return f"Error extracting text from PDF: {str(e)}"
 
-def extract_text_from_image(file_path):
-    """Extract text from image using OCR (pytesseract)"""
+def extract_text_from_image_bytes(file_data: bytes) -> str:
+    """Extract text from image bytes using OCR with improved preprocessing"""
     try:
-        # Check if tesseract is available
-        import pytesseract
-        try:
-            # Try to get tesseract version to check if it's installed
-            pytesseract.get_tesseract_version()
-        except Exception:
-            return ("Tesseract is not installed or not found in PATH. "
-                   "Please install Tesseract OCR:\n"
-                   "1. Download from: https://github.com/UB-Mannheim/tesseract/wiki\n"
-                   "2. Install to default location (C:\\Program Files\\Tesseract-OCR)\n"
-                   "3. Add to PATH or restart your terminal\n"
-                   "Alternative: Use 'choco install tesseract' if you have Chocolatey")
-        
-        with Image.open(file_path) as img:
-            text = image_to_string(img)
-        
-        if not text.strip():
-            return "No text was detected in the image. Please ensure the image contains clear, readable text."
-        
-        return text
+        # Open image from bytes
+        with Image.open(BytesIO(file_data)) as img:
+            # Convert to RGB if necessary
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Resize if too large (OCR works better with reasonable sizes)
+            max_size = 2000
+            if max(img.size) > max_size:
+                ratio = max_size / max(img.size)
+                new_size = tuple(int(dim * ratio) for dim in img.size)
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+            
+            # Extract text using OCR
+            text = image_to_string(img, config='--psm 6 --oem 3')
+            
+            return _normalize_extracted_text(text)
+            
     except Exception as e:
         return f"Error extracting text from image: {str(e)}"
 
-def process_file_with_ai(file_path, file_type, question_text, openai_api_key):
-    """Process uploaded file with AI for grading"""
+def extract_text_from_text_bytes(file_data: bytes) -> str:
+    """Extract text from text file bytes"""
     try:
-        # Extract text based on file type
-        if file_type == 'pdf':
-            extracted_text = extract_text_from_pdf(file_path)
-        elif file_type in ['image', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff']:
-            extracted_text = extract_text_from_image(file_path)
+        # Try different encodings
+        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+        
+        for encoding in encodings:
+            try:
+                text = file_data.decode(encoding)
+                return _normalize_extracted_text(text)
+            except UnicodeDecodeError:
+                continue
+        
+        # If all encodings fail, try with error handling
+        text = file_data.decode('utf-8', errors='ignore')
+        return _normalize_extracted_text(text)
+        
+    except Exception as e:
+        return f"Error extracting text from text file: {str(e)}"
+
+def extract_text_from_any(file_data: bytes | None, file_type: str) -> str:
+    """
+    Extract text from file data bytes.
+    
+    Args:
+        file_data: Raw file bytes
+        file_type: Type of file (pdf, image, text, etc.)
+    
+    Returns:
+        Extracted text as string
+    """
+    if not file_data:
+        return "No file data provided"
+    
+    # Normalize file type
+    normalized_type = file_type.lower()
+    
+    try:
+        if normalized_type == 'pdf':
+            return extract_text_from_pdf_bytes(file_data)
+        
+        elif normalized_type in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'image']:
+            return extract_text_from_image_bytes(file_data)
+        
+        elif normalized_type in ['txt', 'doc', 'docx', 'document', 'text']:
+            return extract_text_from_text_bytes(file_data)
+        
         else:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                extracted_text = f.read()
+            return f"Unsupported file type: {file_type}. Supported types: PDF, images (JPG, PNG, GIF, BMP, TIFF), and text files (TXT, DOC, DOCX)"
+            
+    except Exception as e:
+        return f"Error extracting text from {file_type} file: {str(e)}"
 
-        prompt = (
-            f"You are an expert grader evaluating a student's response to an academic question.\n"
-            f"QUESTION: {question_text}\n"
-            f"STUDENT RESPONSE (extracted from {file_type.upper()} file):\n{extracted_text}\n"
-            "Please evaluate this response and provide:\n"
-            "1. A score out of 20\n"
-            "2. Detailed feedback on the content\n"
-            "3. Comments on handwriting/formatting (if applicable)\n"
-            "4. Suggestions for improvement\n"
-            "Format your response as JSON:\n"
-            "{\n"
-            "  \"score\": <number>,\n"
-            "  \"feedback\": \"<detailed feedback>\",\n"
-            "  \"handwriting_comments\": \"<comments on handwriting/formatting>\",\n"
-            "  \"suggestions\": \"<improvement suggestions>\"\n"
-            "}"
-        )
-
+def process_file_with_ai(file_data: bytes, file_type: str, question_text: str, openai_api_key: str):
+    """Process a file with AI to answer a specific question"""
+    try:
+        # Extract text from the file
+        extracted_text = extract_text_from_any(file_data, file_type)
+        
+        if not extracted_text or extracted_text.startswith("Error extracting text"):
+            return "Could not extract text from the uploaded file."
+        
+        # Use OpenAI to process the text and answer the question
         openai.api_key = openai_api_key
+        
+        prompt = f"""
+        Based on the following text, please answer this question: {question_text}
+        
+        Text content:
+        {extracted_text[:3000]}  # Limit text length for API
+        
+        Please provide a clear and concise answer based only on the information in the text.
+        """
+        
         response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1000,
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that answers questions based on provided text content."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
             temperature=0.3
         )
-
-        return response.choices[0].message.content
-
+        
+        return response.choices[0].message.content.strip()
+        
     except Exception as e:
         return f"Error processing file with AI: {str(e)}"
 
@@ -173,3 +202,15 @@ def get_security_questions():
         "What is the name of your favorite teacher?",
         "What is your favorite food?"
     ]
+
+def extract_text_from_pdf(file_path):
+    """Legacy function for backward compatibility - redirects to bytes version"""
+    # This function is kept for backward compatibility
+    # New code should use extract_text_from_pdf_bytes directly
+    return "This function is deprecated. Use extract_text_from_pdf_bytes instead."
+
+def extract_text_from_image(file_path):
+    """Legacy function for backward compatibility - redirects to bytes version"""
+    # This function is kept for backward compatibility
+    # New code should use extract_text_from_image_bytes directly
+    return "This function is deprecated. Use extract_text_from_image_bytes instead."

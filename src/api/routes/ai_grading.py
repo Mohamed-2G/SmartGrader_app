@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 import re
 import os
 
-from src.core.models import Answer, Question, db
+from src.core.models import QuestionAnswer, db
 from src.services.grader.exam_grader import ExamGrader
 
 # Create Blueprint
@@ -204,8 +204,19 @@ def grade_answer():
             return jsonify({'success': False, 'error': 'Answer ID is required'}), 400
         
         # Get the answer and question
-        answer = Answer.query.get_or_404(answer_id)
-        question = Question.query.get(answer.question_id)
+        answer = QuestionAnswer.query.get_or_404(answer_id)
+        # Get question from the uploaded exam's processing result
+        submission = answer.student_submission
+        exam = submission.uploaded_exam
+        if exam.processing_result:
+            import json
+            try:
+                questions_data = json.loads(exam.processing_result)
+                question = next((q for q in questions_data if q.get('question_number') == answer.question_number), None)
+            except:
+                question = None
+        else:
+            question = None
         
         # Check if user has permission to grade this answer
         # (Only instructors should be able to grade)
@@ -214,19 +225,33 @@ def grade_answer():
         
         # Try DeepSeek API as primary grading method
         try:
-            score, feedback = grade_with_deepseek(
-                question.question_text, 
-                answer.answer_text, 
-                question.points
-            )
+            if question:
+                score, feedback = grade_with_deepseek(
+                    question.get('question_text', 'Unknown question'), 
+                    answer.answer_text, 
+                    question.get('points', 1)
+                )
+            else:
+                score, feedback = grade_with_deepseek(
+                    answer.question_text or 'Unknown question', 
+                    answer.answer_text, 
+                    answer.max_score or 1
+                )
         except Exception as e:
             print(f"DeepSeek grading failed: {e}")
             # Fallback to content-based grading if DeepSeek fails
-            score, feedback = grade_with_fallback(
-                question.question_text, 
-                answer.answer_text, 
-                question.points
-            )
+            if question:
+                score, feedback = grade_with_fallback(
+                    question.get('question_text', 'Unknown question'), 
+                    answer.answer_text, 
+                    question.get('points', 1)
+                )
+            else:
+                score, feedback = grade_with_fallback(
+                    answer.question_text or 'Unknown question', 
+                    answer.answer_text, 
+                    answer.max_score or 1
+                )
         
         # Update the answer with the grade
         answer.score = score
@@ -236,7 +261,7 @@ def grade_answer():
         return jsonify({
             'success': True,
             'score': score,
-            'max_points': question.points,
+            'max_points': question.get('points', 1) if question else answer.max_score or 1,
             'feedback': feedback
         })
         
@@ -261,27 +286,52 @@ def grade_batch():
         
         for answer_id in answer_ids:
             try:
-                answer = Answer.query.get(answer_id)
+                answer = QuestionAnswer.query.get(answer_id)
                 if not answer:
                     results.append({'answer_id': answer_id, 'error': 'Answer not found'})
                     continue
                 
-                question = Question.query.get(answer.question_id)
+                # Get question from the uploaded exam's processing result
+                submission = answer.student_submission
+                exam = submission.uploaded_exam
+                if exam.processing_result:
+                    import json
+                    try:
+                        questions_data = json.loads(exam.processing_result)
+                        question = next((q for q in questions_data if q.get('question_number') == answer.question_number), None)
+                    except:
+                        question = None
+                else:
+                    question = None
                 
                 # Grade the answer using DeepSeek API
                 try:
-                    score, feedback = grade_with_deepseek(
-                        question.question_text, 
-                        answer.answer_text, 
-                        question.points
-                    )
+                    if question:
+                        score, feedback = grade_with_deepseek(
+                            question.get('question_text', 'Unknown question'), 
+                            answer.answer_text, 
+                            question.get('points', 1)
+                        )
+                    else:
+                        score, feedback = grade_with_deepseek(
+                            answer.question_text or 'Unknown question', 
+                            answer.answer_text, 
+                            answer.max_score or 1
+                        )
                 except Exception as e:
                     print(f"DeepSeek grading failed for answer {answer_id}: {e}")
-                    score, feedback = grade_with_fallback(
-                        question.question_text, 
-                        answer.answer_text, 
-                        question.points
-                    )
+                    if question:
+                        score, feedback = grade_with_fallback(
+                            question.get('question_text', 'Unknown question'), 
+                            answer.answer_text, 
+                            question.get('points', 1)
+                        )
+                    else:
+                        score, feedback = grade_with_fallback(
+                            answer.question_text or 'Unknown question', 
+                            answer.answer_text, 
+                            answer.max_score or 1
+                        )
                 
                 # Update the answer
                 answer.score = score
@@ -290,7 +340,7 @@ def grade_batch():
                 results.append({
                     'answer_id': answer_id,
                     'score': score,
-                    'max_points': question.points,
+                    'max_points': question.get('points', 1) if question else answer.max_score or 1,
                     'feedback': feedback
                 })
                 

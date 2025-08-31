@@ -23,8 +23,8 @@ from src.utils.translations import get_text
 # Create Blueprint
 auth_bp = Blueprint('auth', __name__)
 
-# Available languages
-languages = ['english', 'french', 'arabic']
+# Available languages (codes)
+languages = ['en', 'fr', 'ar', 'tr']
 
 def generate_verification_code():
     """Generate a 6-digit verification code"""

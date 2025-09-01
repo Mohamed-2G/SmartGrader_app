@@ -2,7 +2,7 @@
 
 A comprehensive Flask-based web application that automates exam grading using AI, with support for multiple user roles, file uploads, and intelligent question extraction.
 
-## 🚀 Features
+## Features
 
 ### Core Functionality
 - **AI-Powered Grading**: Uses DeepSeek API for intelligent exam grading with fallback mechanisms
@@ -13,20 +13,20 @@ A comprehensive Flask-based web application that automates exam grading using AI
 
 ### User Roles
 
-#### 👨‍🏫 Instructor
+#### Instructor
 - Upload exams (PDF, images, documents)
 - Automatic question extraction using AI
 - View and grade student submissions
 - Manage exam content and settings
 - Download student submissions
 
-#### 👨‍🎓 Student
+#### Student
 - View available exams
 - Submit answers (text or file uploads)
 - View grading results and feedback
 - Access submission history
 
-#### 👨‍💼 Moderator
+#### Moderator
 - User management (create, edit, delete users)
 - System settings configuration
 - Access to all instructor and student features
@@ -39,7 +39,7 @@ A comprehensive Flask-based web application that automates exam grading using AI
 - **Authentication**: Flask-Login with role-based access control
 - **Responsive UI**: Modern web interface with Bootstrap
 
-## 🛠️ Installation
+## 🛠Installation
 
 ### Prerequisites
 - Python 3.8+
@@ -78,7 +78,7 @@ A comprehensive Flask-based web application that automates exam grading using AI
    flask run --debug
    ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 SmartGrader/
@@ -132,11 +132,10 @@ SmartGrader/
 
 ### File Types Supported
 - **PDF**: Text extraction using PyMuPDF
-- **Images**: OCR using Tesseract
 - **Documents**: Direct text reading
 - **Manual**: Text-based question creation
 
-## 🚀 Usage
+## Usage
 
 ### For Instructors
 1. **Login** with instructor credentials
@@ -157,14 +156,14 @@ SmartGrader/
 3. **Configure System** settings
 4. **Access All Features** available to instructors and students
 
-## 🔒 Security Features
+## Security Features
 
 - **Role-Based Access Control**: Users can only access features appropriate to their role
 - **Session Management**: Secure session handling with Flask-Login
 - **File Validation**: Secure filename handling and type validation
 - **Database Integrity**: SQLAlchemy with proper error handling
 
-## 🧪 Testing
+## Testing
 
 ### Default Users
 The system creates default users on first run:
@@ -179,7 +178,7 @@ The system creates default users on first run:
 - Test AI grading system
 - Verify role-based access
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 1. **Import Errors**: Ensure all dependencies are installed
@@ -193,7 +192,7 @@ Run with debug mode for detailed error information:
 flask run --debug
 ```
 
-## 📝 API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /login` - User login
@@ -216,7 +215,7 @@ flask run --debug
 - `POST /api/grade_batch` - Grade multiple answers
 - `POST /api/test_grading` - Test grading system
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -224,24 +223,3 @@ flask run --debug
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- **DeepSeek**: AI grading capabilities
-- **Flask**: Web framework
-- **SQLAlchemy**: Database ORM
-- **Bootstrap**: UI components
-
-## 📞 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the configuration documentation
-
----
-
-**SmartGrader** - Making exam grading intelligent and efficient! 🎓✨

@@ -11,7 +11,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import openai
+# import openai  # Removed - not used in main application
 import os
 import uuid
 import requests

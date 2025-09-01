@@ -2,7 +2,7 @@ import fitz  # PyMuPDF for PDF processing
 from pytesseract import image_to_string
 from PIL import Image
 from io import BytesIO
-import openai
+# import openai  # Removed - not used in current implementation
 # Removed os import - no longer needed for filesystem operations
 
 def allowed_file(filename, allowed_extensions):
@@ -148,41 +148,11 @@ def extract_text_from_any(file_data: bytes | None, file_type: str) -> str:
     except Exception as e:
         return f"Error extracting text from {file_type} file: {str(e)}"
 
-def process_file_with_ai(file_data: bytes, file_type: str, question_text: str, openai_api_key: str):
-    """Process a file with AI to answer a specific question"""
-    try:
-        # Extract text from the file
-        extracted_text = extract_text_from_any(file_data, file_type)
-        
-        if not extracted_text or extracted_text.startswith("Error extracting text"):
-            return "Could not extract text from the uploaded file."
-        
-        # Use OpenAI to process the text and answer the question
-        openai.api_key = openai_api_key
-        
-        prompt = f"""
-        Based on the following text, please answer this question: {question_text}
-        
-        Text content:
-        {extracted_text[:3000]}  # Limit text length for API
-        
-        Please provide a clear and concise answer based only on the information in the text.
-        """
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that answers questions based on provided text content."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.3
-        )
-        
-        return response.choices[0].message.content.strip()
-        
-    except Exception as e:
-        return f"Error processing file with AI: {str(e)}"
+# def process_file_with_ai(file_data: bytes, file_type: str, question_text: str, openai_api_key: str):
+#     """Process a file with AI to answer a specific question - LEGACY FUNCTION NOT USED"""
+#     # This function is commented out as it's not used in the current implementation
+#     # The main grading system uses DeepSeek API instead of OpenAI
+#     return "This function is not available in the current implementation"
 
 """
 helpers.py - Utility functions for SmartGrader

@@ -120,7 +120,7 @@ class Message(db.Model):
     message_type = db.Column(db.String(20), default='text')  # text, file, system
 
 
-class SystemSettings(db.Model):
+class SystemSettings(db.Model): #needs to be remodeled.
     """Model for system-wide configuration settings"""
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(100), unique=True, nullable=False)
@@ -128,3 +128,5 @@ class SystemSettings(db.Model):
     description = db.Column(db.Text)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+

@@ -5,26 +5,42 @@ Flask-SQLAlchemy==3.1.1
 Flask-Mail==0.9.1
 Flask-Migrate==4.0.5
 Werkzeug==3.0.1
+
 # Database
 SQLAlchemy==2.0.2
+
 # Environment and Configuration
 python-dotenv==1.0.0
+
 # HTTP Requests
 requests==2.31.0
+
 # AI/ML Libraries
 openai==1.3.0
+
 # PDF Processing
 PyMuPDF==1.24.11
 PyPDF2==3.0.1
+
 # Image Processing
 pytesseract==0.3.10
 opencv-python==4.8.1.78
 Pillow==11.3.0
+
 # Data Processing
 numpy==2.3.2
+
 # System Utilities
 psutil==7.0.0
+
 # Security
 itsdangerous==2.1.2
+
 # Email Processing
-email-validator==2.1.0 
+email-validator==2.2.0
+
+# Database Migrations
+alembic==1.13.1
+
+# Type Hints
+typing-extensions==4.8.0 

@@ -28,7 +28,7 @@ def dashboard():
     total_users = User.query.count()
     total_exams = UploadedExam.query.count()
     total_submissions = StudentSubmission.query.count()
-    recent_users = User.query.order_by(User.created_at.desc()).all()
+    recent_users = User.query.order_by(User.created_at.desc()).limit(20).all()
 
     return render_template(
         'moderator/dashboard.html',

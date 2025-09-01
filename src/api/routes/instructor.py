@@ -106,11 +106,11 @@ def extract_answer_for_question(submission_text, question_number, question_text)
         # If we found specific answer lines, return them
         if answer_lines:
             answer_text = '\n'.join(answer_lines)
-            print(f"✅ Found specific answer for Question {question_number}: {len(answer_text)} characters")
+            print(f"Found specific answer for Question {question_number}: {len(answer_text)} characters")
             return answer_text
         
         # If no specific answer found, try AI-based extraction
-        print(f"⚠️ No specific answer markers found for Question {question_number}, trying AI-based extraction...")
+        print(f"No specific answer markers found for Question {question_number}, trying AI-based extraction...")
         
         try:
             # Use AI to extract the specific answer for this question
@@ -172,19 +172,19 @@ def extract_answer_for_question(submission_text, question_number, question_text)
                     json_response = json.loads(ai_response.strip())
                     ai_answer = json_response.get('answer', '')
                     if ai_answer and ai_answer != "No specific answer found for this question":
-                        print(f"✅ AI extracted answer for Question {question_number}: {len(ai_answer)} characters")
+                        print(f"AI extracted answer for Question {question_number}: {len(ai_answer)} characters")
                         return ai_answer
                 except json.JSONDecodeError:
                     # If JSON parsing fails, use the raw response
                     if ai_response and "No specific answer found" not in ai_response:
-                        print(f"✅ AI extracted answer for Question {question_number}: {len(ai_response)} characters")
+                        print(f"AI extracted answer for Question {question_number}: {len(ai_response)} characters")
                         return ai_response
                         
         except Exception as ai_error:
-            print(f"⚠️ AI extraction failed for Question {question_number}: {ai_error}")
+            print(f"AI extraction failed for Question {question_number}: {ai_error}")
         
         # Final fallback: return a portion of the submission text
-        print(f"⚠️ No specific answer found for Question {question_number}, using fallback...")
+        print(f"No specific answer found for Question {question_number}, using fallback...")
         
         # Try to find a reasonable section of the submission text
         total_lines = len(lines)
@@ -203,7 +203,7 @@ def extract_answer_for_question(submission_text, question_number, question_text)
             
             fallback_text = '\n'.join([line.strip() for line in section_lines if line.strip()])
             if fallback_text:
-                print(f"✅ Using fallback section for Question {question_number}: {len(fallback_text)} characters")
+                print(f"Using fallback section for Question {question_number}: {len(fallback_text)} characters")
                 return fallback_text
         
         # If all else fails, return a limited portion of the full text
@@ -264,8 +264,8 @@ def extract_questions_with_ai(exam_text, grader):
         IMPORTANT: This is a question extraction task, NOT a grading task. Do NOT grade anything. Only extract and list the questions found in the exam text.
         """
         
-        print(f"🔍 Extracting questions from exam text (length: {len(exam_text)} characters)")
-        print(f"📄 First 500 characters: {exam_text[:500]}...")
+        print(f"Extracting questions from exam text (length: {len(exam_text)} characters)")
+        print(f"First 500 characters: {exam_text[:500]}...")
         
         # Use direct API call instead of grading interface
         try:
@@ -301,7 +301,7 @@ def extract_questions_with_ai(exam_text, grader):
             if response.status_code == 200:
                 result = response.json()
                 ai_response = result['choices'][0]['message']['content']
-                print(f"🤖 AI Response (first 500 chars): {ai_response[:500]}...")
+                print(f"AI Response (first 500 chars): {ai_response[:500]}...")
                 
                 # Try to parse as JSON
                 try:
@@ -310,7 +310,7 @@ def extract_questions_with_ai(exam_text, grader):
                     json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
                     if json_match:
                         json_str = json_match.group(0)
-                        print(f"📋 Found JSON: {json_str}")
+                        print(f"Found JSON: {json_str}")
                         parsed_data = json.loads(json_str)
                         questions = parsed_data.get('questions', [])
                         
@@ -959,7 +959,7 @@ def process_exam(exam_id):
         uploaded_exam.processing_status = 'processing'
         db.session.commit()
         
-        print(f"🔄 Processing exam: {uploaded_exam.title}")
+        print(f"Processing exam: {uploaded_exam.title}")
         
         # Extract text from the uploaded exam file (database BLOB)
         exam_text = extract_text_from_any(
@@ -1153,8 +1153,8 @@ def grade_submission(submission_id):
         total_score = 0
         max_score = 0
         
-        # Initialize grading system
-        print("🚀 Initializing DeepSeek AI grading system...")
+        # Initialize grading system with deeepseek
+        print("Initializing DeepSeek AI grading system...")
         try:
             # Test DeepSeek connection
             from src.services.grader.exam_grader import ExamGrader

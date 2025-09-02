@@ -42,7 +42,7 @@ A comprehensive Flask-based web application that automates exam grading using AI
 ## 🛠Installation
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.10
 - pip package manager
 
 ### Setup
